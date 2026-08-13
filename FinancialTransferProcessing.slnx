@@ -1,0 +1,7 @@
+<Solution>
+  <File Path="README.md" />
+  <Folder Name="/src/" />
+  <Folder Name="/src/FinancialTransferProcessing.Domain/">
+    <Project Path="src/FinancialTransferProcessing.Domain/FinancialTransferProcessing.Domain.csproj" />
+  </Folder>
+</Solution>
