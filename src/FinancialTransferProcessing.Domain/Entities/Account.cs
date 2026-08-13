@@ -1,5 +1,5 @@
 ﻿using FinancialTransferProcessing.Domain.Exceptions;
-using System.Text.RegularExpressions;
+using FinancialTransferProcessing.Domain.Validations;
 
 namespace FinancialTransferProcessing.Domain.Entities;
 
@@ -46,7 +46,7 @@ public class Account : EntityBase
 
     public void Debit(long amountInCents)
     {
-        EnsurePositiveAmount(amountInCents);
+        DomainValidation.EnsurePositiveAmount(amountInCents);
 
         if (BalanceInCents < amountInCents)
             throw new DomainException("Insufficient Balance");
@@ -57,7 +57,7 @@ public class Account : EntityBase
 
     public void Credit(long amountInCents)
     {
-        EnsurePositiveAmount(amountInCents);
+        DomainValidation.EnsurePositiveAmount(amountInCents);
 
         try
         {
@@ -71,11 +71,5 @@ public class Account : EntityBase
         }
 
         UpdatedAt = DateTimeOffset.UtcNow;
-    }
-
-    private static void EnsurePositiveAmount(long amountInCents)
-    {
-        if (amountInCents <= 0)
-            throw new DomainException("Amount must be greater than zero");
     }
 }

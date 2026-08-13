@@ -8,5 +8,5 @@ public enum ETransferStatus
 {
     Pending,
     Completed,
-    Failied
+    Failed
 }
