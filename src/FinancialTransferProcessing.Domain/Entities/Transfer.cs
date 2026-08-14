@@ -14,7 +14,7 @@ public class Transfer : EntityBase
         long amountInCents,
         string idempotencyKey)
     {
-        ValidatePayerEqualsPayee(payerId, PayeeId);
+        ValidatePayerEqualsPayee(payerId, payeeId);
         Status = ETransferStatus.Pending;
         SetPayer(payerId);
         SetPayee(payeeId);
@@ -78,28 +78,28 @@ public class Transfer : EntityBase
                 "Payer and payee must be different accounts.");
     }
 
-    public void Completed()
+    public void Complete()
     {
         if (Status != ETransferStatus.Pending)
-            throw new DomainException("Only pending Tranfers can be completed.");
+            throw new DomainException("Only pending tranfers can be completed.");
 
         Status = ETransferStatus.Completed;
-        ProcessedAt = DateTimeOffset.UtcNow;
         FailureReason = null;
         UpdatedAt = DateTimeOffset.UtcNow;
+        ProcessedAt = UpdatedAt;
     }
 
     public void Fail(string reason)
     {
         if (Status != ETransferStatus.Pending)
-            throw new DomainException("Only pending Tranfers can be failed.");
+            throw new DomainException("Only pending tranfers can be failed.");
 
         if (string.IsNullOrWhiteSpace(reason))
             throw new DomainException("Failure reason cannot be empty");
 
         Status = ETransferStatus.Failed;
-        ProcessedAt = DateTimeOffset.UtcNow;
         FailureReason = reason.Trim();
         UpdatedAt = DateTimeOffset.UtcNow;
+        ProcessedAt = UpdatedAt;
     }
 }

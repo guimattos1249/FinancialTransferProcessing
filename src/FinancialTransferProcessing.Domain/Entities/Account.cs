@@ -21,8 +21,14 @@ public class Account : EntityBase
     public string Name { get; private set; }
     public long BalanceInCents { get; private set; }
     public long Version { get; private set; }
-    public ICollection<Transfer> OutgoingTransfers { get; private set; } = [];
-    public ICollection<Transfer> IncomingTransfers { get; private set; } = [];
+    private readonly List<Transfer> _outgoingTransfers = [];
+    private readonly List<Transfer> _incomingTransfers = [];
+
+    public IReadOnlyCollection<Transfer> OutgoingTransfers =>
+        _outgoingTransfers.AsReadOnly();
+
+    public IReadOnlyCollection<Transfer> IncomingTransfers =>
+        _incomingTransfers.AsReadOnly();
 
     public void SetName(string name)
     {
@@ -52,6 +58,7 @@ public class Account : EntityBase
             throw new DomainException("Insufficient Balance");
 
         BalanceInCents -= amountInCents;
+        Version++;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
@@ -70,6 +77,7 @@ public class Account : EntityBase
                 exception);
         }
 
+        Version++;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 }
