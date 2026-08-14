@@ -1,6 +1,14 @@
 <Solution>
   <File Path="README.md" />
-  <Folder Name="/src/" />
+  <Folder Name="/src/FinancialTransferProcessing.Infrastructure/">
+    <Project Path="src/FinancialTransferProcessing.Infrastructure/FinancialTransferProcessing.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/FinancialTransferProcessing.API/">
+    <Project Path="src/FinancialTransferProcessing.API/FinancialTransferProcessing.API.csproj" />
+  </Folder>
+  <Folder Name="/src/FinancialTransferProcessing.Application/">
+    <Project Path="src/FinancialTransferProcessing.Application/FinancialTransferProcessing.Application.csproj" />
+  </Folder>
   <Folder Name="/src/FinancialTransferProcessing.Domain/">
     <Project Path="src/FinancialTransferProcessing.Domain/FinancialTransferProcessing.Domain.csproj" />
   </Folder>
