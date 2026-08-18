@@ -1,6 +1,6 @@
 ﻿namespace FinancialTransferProcessing.Domain.Entities;
 
-public class EntityBase
+public abstract class EntityBase
 {
     public EntityBase()
     {

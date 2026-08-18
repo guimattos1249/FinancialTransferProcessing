@@ -8,6 +8,11 @@ public class Transfer : EntityBase
 {
     public const int MaxIdempotencyKeyLength = 100;
 
+    public Transfer()
+    {
+        IdempotencyKey = null!;
+    }
+
     public Transfer(
         Guid payerId, 
         Guid payeeId,

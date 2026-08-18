@@ -1,0 +1,37 @@
+services:
+  financial-transfer-processing-pg:
+    container_name: financial-transfer-processing-pg
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: financial_transfer_processing
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "15433:5432"
+    volumes:
+      - financial_transfer_processing_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d financial_transfer_processing"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=financial-transfer-processing-pg;Port=5432;Database=financial_transfer_processing;Username=postgres;Password=postgres
+      Database__ApplyMigrations: "true"
+    ports:
+      - "5033:8080"
+    depends_on:
+      financial-transfer-processing-pg:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  financial_transfer_processing_pg_data:

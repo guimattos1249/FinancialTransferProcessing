@@ -4,6 +4,8 @@ namespace FinancialTransferProcessing.Domain.Entities;
 
 public class ProcessedMessage
 {
+    public ProcessedMessage() {}
+
     public ProcessedMessage(Guid messageId, Guid transferId)
     {
         if (messageId == Guid.Empty)
