@@ -19,7 +19,7 @@ public class CreateAccountUseCase(IUnitOfWork unitOfWork, IAccountWriteOnlyRepos
         {
             var account = new Account(request.Name, request.InitialBalanceInCents);
 
-            await _repository.Create(account, cancellationToken);
+            await _repository.CreateAsync(account, cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

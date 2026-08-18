@@ -4,5 +4,5 @@ namespace FinancialTransferProcessing.Application.Contracts.Repositories.Account
 
 public interface IAccountReadOnlyRepository
 {
-    Task<Account> GetByIdAsync(Guid Id, CancellationToken cancellationToken = default);
+    Task<Account?> GetByIdAsync(Guid Id, CancellationToken cancellationToken = default);
 }

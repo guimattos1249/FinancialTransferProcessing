@@ -4,6 +4,6 @@ namespace FinancialTransferProcessing.Application.Contracts.Repositories.Account
 
 public interface IAccountWriteOnlyRepository
 {
-    Task Create(Account account, CancellationToken cancellationToken = default);
-    Task<bool> Delete(Guid Id);
+    Task CreateAsync(Account account, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(Guid Id);
 }

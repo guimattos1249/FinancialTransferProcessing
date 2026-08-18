@@ -8,12 +8,12 @@ namespace FinancialTransferProcessing.Infrastructure.Repositories.Accounts;
 public sealed class AccountRepository(ApplicationDbContext context)
     : IAccountReadOnlyRepository, IAccountWriteOnlyRepository
 {
-    public async Task Create(Account account, CancellationToken cancellationToken = default)
+    public async Task CreateAsync(Account account, CancellationToken cancellationToken = default)
     {
         await context.Accounts.AddAsync(account, cancellationToken);
     }
 
-    public async Task<bool> Delete(Guid Id)
+    public async Task<bool> DeleteAsync(Guid Id)
     {
         var account = await context.Accounts.FindAsync(Id);
 
@@ -24,10 +24,7 @@ public sealed class AccountRepository(ApplicationDbContext context)
         return true;
     }
 
-    public Task<Account> GetByIdAsync(Guid Id, CancellationToken cancellationToken = default)
-    {
-        return context.Accounts
+    public Task<Account?> GetByIdAsync(Guid Id, CancellationToken cancellationToken = default) => context.Accounts
             .AsNoTracking()
-            .SingleAsync(account => account.Id == Id, cancellationToken);
-    }
+            .SingleOrDefaultAsync(account => account.Id == Id, cancellationToken);
 }
