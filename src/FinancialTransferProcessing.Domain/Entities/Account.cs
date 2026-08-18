@@ -8,6 +8,11 @@ public class Account : EntityBase
     public const int MaxNameLength = 100;
     public const int MinNameLength = 3;
 
+    public Account () 
+    {
+        Name = null!;
+    }
+
     public Account(string name, long initialBalanceInCents = 0)
     {
         Name = ValidateName(name);
