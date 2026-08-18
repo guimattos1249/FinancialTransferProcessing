@@ -5,12 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FinancialTransferProcessing.Infrastructure.Repositories.Accounts;
 
-internal sealed class AccountRepository(ApplicationDbContext context)
+public sealed class AccountRepository(ApplicationDbContext context)
     : IAccountReadOnlyRepository, IAccountWriteOnlyRepository
 {
-    public async Task Create(Account account)
+    public async Task Create(Account account, CancellationToken cancellationToken = default)
     {
-        await context.Accounts.AddAsync(account);
+        await context.Accounts.AddAsync(account, cancellationToken);
     }
 
     public async Task<bool> Delete(Guid Id)
