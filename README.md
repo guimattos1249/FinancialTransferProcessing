@@ -1,8 +1,8 @@
 # Financial Transfer Processing
 
-Sistema de processamento assíncrono de transferências financeiras desenvolvido com **.NET e Microsoft Azure**, explorando conceitos de arquitetura distribuída, mensageria, serverless, concorrência, idempotência, observabilidade e performance.
+Sistema de processamento assíncrono de transferências financeiras desenvolvido com **.NET, RabbitMQ, .NET Worker Service e Redis**, explorando conceitos de arquitetura distribuída, mensageria, concorrência, idempotência, observabilidade e performance.
 
-O projeto simula um fluxo de transferência inspirado no funcionamento de sistemas de pagamento instantâneo: a API recebe uma solicitação de transferência e responde imediatamente, enquanto a liquidação financeira acontece de forma assíncrona através de **Azure Service Bus** e **Azure Functions**.
+O projeto simula um fluxo de transferência inspirado no funcionamento de sistemas de pagamento instantâneo: a API recebe uma solicitação de transferência e responde imediatamente, enquanto a liquidação financeira acontece de forma assíncrona através de uma fila durável no **RabbitMQ**, consumida por um **.NET Worker Service**. O **Redis** complementa a arquitetura em cenários de cache, idempotência de acesso rápido e rate limiting distribuído.
 
 ## 🎯 Objetivo
 
@@ -44,15 +44,15 @@ POST /transfers ────────►│ Validate Request        │
                                       │ Publish
                                       ▼
                          ┌─────────────────────────┐
-                         │    Azure Service Bus    │
+                         │        RabbitMQ         │
                          │                         │
-                         │     transfers queue     │
+                         │ transfer-processing q.  │
                          └────────────┬────────────┘
                                       │
-                                      │ ServiceBusTrigger
+                                      │ Consume / manual ack
                                       ▼
                          ┌─────────────────────────┐
-                         │     Azure Function      │
+                         │  .NET Worker Service    │
                          │                         │
                          │   Process Transfer      │
                          │   Check Balance         │
@@ -70,6 +70,8 @@ POST /transfers ────────►│ Validate Request        │
                          └─────────────────────────┘
 ```
 
+Redis atua ao lado da API e do Worker como cache distribuído e mecanismo auxiliar de rate limiting e idempotência. O banco de dados permanece como fonte de verdade para saldos, transferências e mensagens processadas.
+
 A aplicação é dividida em dois principais entrypoints:
 
 ```text
@@ -78,7 +80,7 @@ ASP.NET Core API
         ▼
 Application
 
-Azure Functions
+.NET Worker Service
         │
         ▼
 Application
@@ -111,9 +113,11 @@ A API:
 
 1. valida a requisição;
 2. verifica a chave de idempotência;
-3. cria a transferência como `Pending`;
-4. publica uma mensagem no Azure Service Bus;
+3. cria a transferência como `Pending` e registra a mensagem no outbox na mesma transação;
+4. confirma a transação no banco;
 5. responde imediatamente ao cliente.
+
+Em background, o publicador do outbox envia uma mensagem persistente ao RabbitMQ. Esse envio não faz parte do tempo de resposta da requisição.
 
 ```http
 202 Accepted
@@ -130,20 +134,24 @@ A API **não aguarda a liquidação financeira**.
 
 ---
 
-# 📨 Azure Service Bus
+# 📨 RabbitMQ
 
-O **Azure Service Bus** é responsável por desacoplar o recebimento da transferência de sua liquidação.
+O **RabbitMQ** é responsável por desacoplar o recebimento da transferência de sua liquidação. A API publica comandos e o Worker os consome de maneira independente, permitindo que cada componente seja escalado e reiniciado sem interromper o outro.
 
 ```text
 API
  │
- │ TransactionRequested
+ │ TransferRequested
  ▼
-Azure Service Bus
+RabbitMQ exchange: financial-transfers
  │
- │ ServiceBusTrigger
+ │ routing key: transfer.requested
  ▼
-Azure Function
+queue: transfer-processing
+ │
+ │ competing consumer
+ ▼
+.NET Worker Service
 ```
 
 Exemplo conceitual da mensagem:
@@ -156,16 +164,28 @@ Exemplo conceitual da mensagem:
 }
 ```
 
-A mensagem contém apenas as informações necessárias para identificar e processar a transferência.
+A mensagem contém apenas as informações necessárias para identificar e processar a transferência. Os dados financeiros completos são recuperados do banco pelo `transferId`, evitando que informações de saldo fiquem desatualizadas dentro da fila.
+
+A topologia utiliza:
+
+- exchange durável `financial-transfers` para receber os comandos;
+- routing key `transfer.requested` para encaminhar o comando;
+- fila durável `transfer-processing`, preferencialmente do tipo **quorum**;
+- mensagens persistentes para sobreviver ao reinício do broker;
+- publisher confirms para a aplicação confirmar que o RabbitMQ recebeu a publicação;
+- acknowledgements manuais para remover a mensagem somente após o processamento bem-sucedido;
+- prefetch e limite de concorrência configuráveis para controlar quantas transferências cada instância processa simultaneamente.
+
+O **Transactional Outbox** elimina a janela de inconsistência entre persistir a transferência e publicar o comando. A API salva a transferência `Pending` e a mensagem do outbox na mesma transação de banco; um publicador em background entrega as mensagens pendentes ao RabbitMQ e marca cada item como publicado somente depois do publisher confirm.
 
 ---
 
-# ⚡ Azure Functions
+# ⚙️ .NET Worker Service
 
-A liquidação é executada por uma **Azure Function** acionada através de um `ServiceBusTrigger`.
+A liquidação é executada por um **.NET Worker Service** baseado no Generic Host. O processo mantém uma conexão com o RabbitMQ, aguarda mensagens da fila `transfer-processing` e cria um escopo de injeção de dependência para cada entrega.
 
 ```text
-ProcessTransferFunction
+ProcessTransferWorker
         │
         ▼
 Get Transfer
@@ -190,9 +210,21 @@ Already processed?
        Completed
 ```
 
-A Function funciona apenas como um entrypoint para o processamento.
+O Worker funciona apenas como entrypoint para o processamento. O consumidor desserializa e valida o envelope, propaga `MessageId` e `CorrelationId`, chama o caso de uso da camada de aplicação e decide o destino da mensagem:
+
+- **ack** depois que a transação de liquidação for confirmada;
+- **retry** quando ocorrer uma falha transitória;
+- **dead letter** quando a mensagem exceder o limite de tentativas ou contiver um erro não recuperável.
+
+Várias instâncias do Worker podem consumir a mesma fila como **competing consumers**. O RabbitMQ distribui as mensagens entre elas, enquanto prefetch e concorrência limitam a pressão sobre o banco. No encerramento, o Worker interrompe novas entregas, aguarda os processamentos em andamento dentro do limite configurado e devolve ao broker qualquer mensagem que não tenha recebido ack.
 
 As regras financeiras permanecem na camada de aplicação/domínio.
+
+---
+
+# ⚡ Redis
+
+O **Redis** é utilizado como componente auxiliar para rate limiting distribuído, cache do status das transferências e consultas rápidas de chaves de idempotência ou mensagens recentemente processadas. O banco de dados continua sendo a fonte de verdade, e Redis não participa do controle de saldo, do lock financeiro nem substitui o RabbitMQ.
 
 ---
 
@@ -244,7 +276,7 @@ apenas **uma transferência financeira poderá existir**.
 
 Todas as solicitações seguintes retornam a transferência originalmente associada àquela chave.
 
-A idempotência também é aplicada ao processamento das mensagens para impedir que uma mensagem entregue novamente pelo Service Bus resulte em uma segunda movimentação financeira.
+A idempotência também é aplicada ao processamento das mensagens para impedir que uma mensagem entregue novamente pelo RabbitMQ resulte em uma segunda movimentação financeira.
 
 ---
 
@@ -262,7 +294,7 @@ Balance: R$ 1.000
 200 transferências simultâneas
             │
             ▼
-      Azure Functions
+   .NET Worker Services
       ↙  ↓  ↓  ↓  ↘
      T1 T2 T3 ... T200
             │
@@ -270,7 +302,7 @@ Balance: R$ 1.000
         Account A
 ```
 
-Mesmo com várias Functions concorrentes, o sistema deve garantir:
+Mesmo com várias instâncias concorrentes do Worker, o sistema deve garantir:
 
 ```text
 Balance >= 0
@@ -303,7 +335,7 @@ External provider unavailable
 Temporary infrastructure failure
 ```
 
-Nesses casos, uma mensagem pode ser processada novamente.
+Nesses casos, o Worker não envia o ack definitivo e a mensagem pode ser processada novamente.
 
 Por isso:
 
@@ -322,12 +354,12 @@ são tratados como conceitos complementares.
 Mensagens que não conseguem ser processadas após sucessivas tentativas são direcionadas para uma **Dead Letter Queue (DLQ)**.
 
 ```text
-Service Bus
+RabbitMQ
 
 Message
    │
    ▼
-Function
+Worker
    │
    X
  Retry
@@ -342,7 +374,19 @@ Function
 Dead Letter Queue
 ```
 
-Isso evita retries infinitos e permite investigação ou reprocessamento controlado.
+A topologia separa a fila principal, a fila de retry e a DLQ:
+
+```text
+transfer-processing
+        │
+        ├── transient failure ──► transfer-processing.retry.*
+        │                              │
+        │                              └── delay / TTL ──► transfer-processing
+        │
+        └── attempts exhausted ─► transfer-processing.dlq
+```
+
+O retry usa atraso progressivo e um limite de tentativas. Erros de negócio definitivos, como saldo insuficiente, atualizam a transferência para `Failed` e recebem ack; não devem ser repetidos como falhas de infraestrutura. A DLQ evita loops infinitos e permite investigação ou reprocessamento controlado.
 
 ---
 
@@ -350,13 +394,13 @@ Isso evita retries infinitos e permite investigação ou reprocessamento control
 
 Além do processamento das transferências, o projeto possui uma rotina de **reconciliação financeira**.
 
-Uma Azure Function executada por `TimerTrigger` analisa as operações de determinado período.
+Um serviço hospedado no projeto Worker executa a reconciliação em intervalos configuráveis e analisa as operações de determinado período.
 
 ```text
-TimerTrigger
+Periodic scheduler
      │
      ▼
-ReconciliationFunction
+ReconciliationWorker
      │
      ├── Total processed
      ├── Total failed
@@ -364,25 +408,25 @@ ReconciliationFunction
      └── Possible inconsistencies
 ```
 
-Essa rotina permite explorar Azure Functions também no contexto de **jobs e cargas agendadas**.
+O agendamento respeita cancelamento, impede sobreposição de execuções e registra o checkpoint do último período reconciliado. Dessa forma, uma reinicialização do Worker não perde nem duplica silenciosamente uma janela de reconciliação.
 
 ---
 
-# 🔀 Azure Logic Apps
+# 🔀 Orquestração no Worker
 
-O projeto utiliza **Azure Logic Apps** para orquestrar o workflow de reconciliação.
+O workflow de reconciliação é orquestrado em C# pelo próprio Worker, mantendo o fluxo versionado, testável e executável em qualquer ambiente.
 
 ```text
 Scheduled Trigger
        │
        ▼
-   Logic App
+ReconciliationWorker
        │
        ▼
 Start Reconciliation
        │
        ▼
-Azure Function
+Application Use Case
        │
        ▼
 Result
@@ -394,13 +438,13 @@ Success    Divergence
 Finish       Alert
 ```
 
-A Logic App é responsável pela **orquestração do processo**, enquanto regras de negócio e processamento financeiro permanecem implementados em C#.
+O Worker é responsável apenas por agendamento e **orquestração do processo**. As regras de reconciliação permanecem na camada de aplicação, e uma divergência pode gerar uma métrica, um log estruturado e um evento no RabbitMQ para integrações futuras.
 
 ---
 
 # 📊 Observabilidade
 
-O projeto utiliza **Application Insights** para acompanhar o comportamento da aplicação.
+O projeto utiliza **OpenTelemetry**, logs estruturados e correlation IDs para acompanhar o comportamento da API, do RabbitMQ e do Worker sem depender de um provedor específico de observabilidade.
 
 Algumas métricas relevantes:
 
@@ -409,7 +453,7 @@ Request latency
 
 Messages processed / second
 
-Function execution time
+Worker processing time
 
 Failed transactions
 
@@ -432,12 +476,12 @@ HTTP Request
 CorrelationId
      │
      ▼
-Service Bus Message
+RabbitMQ Message
      │
 CorrelationId
      │
      ▼
-Azure Function
+.NET Worker Service
      │
 CorrelationId
      ▼
@@ -498,7 +542,7 @@ Também serão comparados diferentes mecanismos de controle de concorrência.
 
 # 🛡️ Invariantes
 
-Independentemente do volume de requisições ou número de Functions executando simultaneamente, algumas regras nunca podem ser violadas.
+Independentemente do volume de requisições ou número de instâncias do Worker executando simultaneamente, algumas regras nunca podem ser violadas.
 
 ### Conservation
 
@@ -591,34 +635,37 @@ O resultado precisa continuar respeitando todos os invariantes financeiros.
 ```text
 src/
 
-├── FinancialProcessing.Api
+├── FinancialTransferProcessing.API
 │
-├── FinancialProcessing.Application
+├── FinancialTransferProcessing.Application
 │   ├── Accounts
 │   ├── Transfers
 │   ├── Reconciliation
 │   └── Contracts
 │
-├── FinancialProcessing.Domain
+├── FinancialTransferProcessing.Domain
 │   ├── Entities
 │   ├── Enums
 │   └── Exceptions
 │
-├── FinancialProcessing.Infrastructure
+├── FinancialTransferProcessing.Infrastructure
 │   ├── Persistence
 │   ├── Messaging
+│   ├── Caching
 │   └── Repositories
 │
-└── FinancialProcessing.Functions
-    ├── ProcessTransfer
+└── FinancialTransferProcessing.Worker
+    ├── Consumers
+    │   └── ProcessTransferConsumer
+    ├── Outbox
     └── Reconciliation
 
 
 tests/
 
-├── FinancialProcessing.UnitTests
-├── FinancialProcessing.IntegrationTests
-├── FinancialProcessing.ConcurrencyTests
+├── FinancialTransferProcessing.UnitTests
+├── FinancialTransferProcessing.IntegrationTests
+├── FinancialTransferProcessing.ConcurrencyTests
 └── LoadTests
 ```
 
@@ -633,12 +680,13 @@ tests/
 - ASP.NET Core
 - Entity Framework Core
 
-### Azure
+### Messaging and background processing
 
-- Azure Functions
-- Azure Service Bus
-- Azure Logic Apps
-- Application Insights
+- RabbitMQ
+- .NET Worker Service
+- Transactional Outbox
+- Redis
+- OpenTelemetry
 
 ### Database
 
@@ -669,24 +717,28 @@ tests/
 
 ## Phase 2 — Async Processing
 
-- [ ] Configurar Azure Service Bus
-- [ ] Publicar `TransactionRequested`
-- [ ] Criar `ProcessTransferFunction`
+- [ ] Configurar RabbitMQ e sua topologia
+- [ ] Implementar Transactional Outbox
+- [ ] Publicar `TransferRequested`
+- [ ] Criar `FinancialTransferProcessing.Worker`
+- [ ] Criar `ProcessTransferConsumer`
 - [ ] Implementar liquidação
 - [ ] Implementar controle de concorrência
 - [ ] Implementar retry
 - [ ] Configurar Dead Letter Queue
+- [ ] Configurar acknowledgements, publisher confirms e graceful shutdown
+- [ ] Configurar Redis para rate limiting e cache auxiliar
 
 ## Phase 3 — Reconciliation
 
 - [ ] Criar rotina de reconciliação
-- [ ] Criar Azure Function com `TimerTrigger`
-- [ ] Implementar Azure Logic App
+- [ ] Criar serviço agendado no Worker
+- [ ] Implementar orquestração da reconciliação em C#
 - [ ] Criar fluxo de tratamento de divergências
 
 ## Phase 4 — Observability
 
-- [ ] Configurar Application Insights
+- [ ] Configurar OpenTelemetry
 - [ ] Implementar structured logging
 - [ ] Implementar correlation ID
 - [ ] Criar métricas de processamento
@@ -709,8 +761,11 @@ Este projeto foi desenvolvido como estudo prático de:
 - Distributed Systems
 - Event-Driven Architecture
 - Asynchronous Processing
-- Serverless Computing
+- .NET Worker Services
 - Message Queues
+- Competing Consumers
+- Transactional Outbox
+- Distributed Cache
 - Financial Transactions
 - Idempotency
 - Concurrency Control
