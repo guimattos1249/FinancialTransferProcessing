@@ -10,11 +10,6 @@ public class CreateTransferValidator : AbstractValidator<CreateTransferRequest>
             .NotEmpty().WithMessage("PayerId is required.");
         RuleFor(t => t.PayeeId)
             .NotEmpty().WithMessage("PayeeId is required.");
-        RuleFor(transfer => transfer.PayeeId)
-            .NotEmpty()
-            .WithMessage("PayeeId is required.")
-            .NotEqual(transfer => transfer.PayerId)
-            .WithMessage("Payer and payee must be different accounts.");
         RuleFor(t => t.AmountInCents)
             .GreaterThan(0).WithMessage("The transfer amount must be greater than zero.");
     }
