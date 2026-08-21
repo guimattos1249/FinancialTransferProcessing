@@ -1,6 +1,7 @@
 ﻿using FinancialTransferProcessing.API.Filters;
 using FinancialTransferProcessing.Application.UseCases.Transfers.CreateTransfer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace FinancialTransferProcessing.API.Controllers;
 
@@ -14,7 +15,7 @@ public class TransferController : ApiController
     [ProducesResponseType(typeof(ResponseError), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Create(
             [FromServices] ICreateTransferUseCase useCase,
-            [FromHeader(Name = "Idempotency-Key")] Guid IdempotencyKey,
+            [FromHeader(Name = "Idempotency-Key"), BindRequired] Guid IdempotencyKey,
             [FromBody] CreateTransferRequest request,
             CancellationToken cancellationToken)
     {
