@@ -18,6 +18,10 @@ public class ExceptionFilter : IExceptionFilter
                 new NotFoundObjectResult(
                     new ResponseError(exception.Message)),
 
+            ConflictException exception =>
+                new ConflictObjectResult(
+                    new ResponseError(exception.Message)),
+
             BusinessRuleException exception =>
                 new UnprocessableEntityObjectResult(
                     new ResponseError(exception.Message)),
