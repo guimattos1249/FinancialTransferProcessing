@@ -7,7 +7,7 @@ namespace FinancialTransferProcessing.API.Controllers;
 
 public class AccountController : ApiController
 {
-    [HttpPost("CreateAccount")]
+    [HttpPost]
     [ProducesResponseType(typeof(CreateAccountResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ResponseError), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseError), StatusCodes.Status422UnprocessableEntity)]

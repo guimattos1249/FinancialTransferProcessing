@@ -24,6 +24,10 @@ public sealed class AccountRepository(ApplicationDbContext context)
         return true;
     }
 
+    public Task<bool> ExistsAsync(Guid Id, CancellationToken cancellationToken = default) => context.Accounts
+        .AsNoTracking()
+        .AnyAsync(x => x.Id == Id, cancellationToken);
+
     public Task<Account?> GetByIdAsync(Guid Id, CancellationToken cancellationToken = default) => context.Accounts
             .AsNoTracking()
             .SingleOrDefaultAsync(account => account.Id == Id, cancellationToken);

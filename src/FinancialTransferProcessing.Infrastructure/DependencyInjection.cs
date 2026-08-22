@@ -1,8 +1,10 @@
 ﻿using FinancialTransferProcessing.Application.Contracts;
 using FinancialTransferProcessing.Application.Contracts.Repositories.Accounts;
+using FinancialTransferProcessing.Application.Contracts.Repositories.Transfers;
 using FinancialTransferProcessing.Infrastructure.Persistence;
 using FinancialTransferProcessing.Infrastructure.Repositories;
 using FinancialTransferProcessing.Infrastructure.Repositories.Accounts;
+using FinancialTransferProcessing.Infrastructure.Repositories.Transfers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +26,8 @@ public static class DependencyInjection
 
         services.AddScoped<IAccountReadOnlyRepository, AccountRepository>();
         services.AddScoped<IAccountWriteOnlyRepository, AccountRepository>();
+        services.AddScoped<ITransferReadOnlyRepository, TransferRepository>();
+        services.AddScoped<ITransferWriteOnlyRepository, TransferRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
