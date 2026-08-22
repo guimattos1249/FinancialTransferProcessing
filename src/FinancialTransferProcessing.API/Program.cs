@@ -3,6 +3,7 @@ using FinancialTransferProcessing.API.Filters;
 using FinancialTransferProcessing.Application;
 using FinancialTransferProcessing.Infrastructure;
 using FinancialTransferProcessing.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using System.Text.Json.Serialization;
@@ -20,6 +21,21 @@ builder.Services.AddControllers(options =>
         new JsonStringEnumConverter(
             namingPolicy: null,
             allowIntegerValues: false));
+});
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState.Values
+            .SelectMany(value => value.Errors)
+            .Select(error =>
+                !string.IsNullOrWhiteSpace(error.ErrorMessage)
+                    ? error.ErrorMessage
+                    : "The request contains an invalid value.")
+            .ToList();
+
+        return new BadRequestObjectResult(new ResponseError(errors));
+    };
 });
 builder.Services
     .AddApiVersioning(options =>
