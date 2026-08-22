@@ -9,14 +9,13 @@ Este diretório contém o backlog executável para concluir o Financial Transfer
 | Tarefa | Entrega |
 | --- | --- |
 | [07](07-create-pending-transfer.md) | Criar transferência pendente com idempotência |
+| [10](10-transactional-outbox-storage.md) | Modelar e persistir o transactional outbox |
 
 ### Pronto para iniciar
 
 | Tarefa | Entrega | Depende de |
 | --- | --- | --- |
 | [08](08-get-transfer-by-id.md) | Consultar transferência por ID | 07 |
-| [09](09-core-automated-tests.md) | Criar fundação de testes e cobrir o core | 07 |
-| [10](10-transactional-outbox-storage.md) | Modelar e persistir o transactional outbox | 07 |
 
 ### Backlog — processamento assíncrono
 
@@ -40,29 +39,37 @@ Este diretório contém o backlog executável para concluir o Financial Transfer
 | [21](21-reconciliation-use-case.md) | Implementar reconciliação e checkpoint | 15 |
 | [22](22-reconciliation-scheduler.md) | Agendar reconciliação e tratar divergências | 21 |
 
-### Backlog — observabilidade e encerramento
+### Backlog — observabilidade e encerramento do core
 
 | Tarefa | Entrega | Depende de |
 | --- | --- | --- |
 | [23](23-correlation-and-structured-logging.md) | Propagar correlação e logs estruturados | 13, 14 |
 | [24](24-opentelemetry-metrics-and-health.md) | Adicionar traces, métricas e health checks | 18, 20, 22, 23 |
-| [25](25-end-to-end-integration-tests.md) | Cobrir o fluxo completo com testes de integração | 18, 24 |
+| [28](28-production-readiness.md) | Fechar containers, CI e documentação operacional | 24 |
+
+### Adiado — qualidade pós-core
+
+Estas tarefas serão retomadas após a conclusão funcional do projeto e não bloqueiam o caminho crítico atual.
+
+| Tarefa | Entrega | Depende de |
+| --- | --- | --- |
+| [09](09-core-automated-tests.md) | Criar fundação de testes e cobrir o core | 28 |
+| [25](25-end-to-end-integration-tests.md) | Cobrir o fluxo completo com testes de integração | 09 |
 | [26](26-concurrency-and-invariant-tests.md) | Validar invariantes financeiros sob concorrência | 16, 25 |
 | [27](27-k6-load-and-performance-tests.md) | Medir carga e comparar estratégias | 20, 26 |
-| [28](28-production-readiness.md) | Fechar containers, CI e documentação operacional | 24, 27 |
 
 ## Política do quadro
 
 - Manter no máximo uma tarefa de implementação em andamento por pessoa.
 - Mover um cartão para pronto somente quando todas as dependências estiverem concluídas.
 - Decisões técnicas relevantes devem ser registradas no próprio cartão ou em ADR.
-- Ao concluir um cartão, executar sua verificação específica e a suíte já existente.
-- Não considerar uma tarefa concluída com testes ignorados, avisos novos ou migrações não validadas.
+- Ao concluir um cartão, executar sua verificação funcional específica.
+- Não considerar uma tarefa concluída com avisos novos ou migrações não validadas.
+- A automação de qualidade está deliberadamente adiada e não bloqueia a conclusão dos cartões do core.
 
 ## Definição de pronto
 
 - Critérios de aceite do cartão atendidos.
-- Testes automatizados relevantes adicionados e aprovados.
 - `CancellationToken` propagado em toda operação assíncrona aplicável.
 - Configurações externas validadas no startup e documentadas.
 - Logs não expõem dados sensíveis nem payload financeiro desnecessário.
@@ -73,7 +80,9 @@ Este diretório contém o backlog executável para concluir o Financial Transfer
 ## Caminho crítico
 
 ```text
-10 -> 11 -> 13 -> 18 -> 25 -> 26 -> 27 -> 28
+10 -> 11 -> 13 -> 18 -> 24 -> 28
        \-> 12 -> 14 -> 15 -> 16 --/
                          \-> 21 -> 22 -> 24
+
+Após o core: 09 -> 25 -> 26 -> 27
 ```

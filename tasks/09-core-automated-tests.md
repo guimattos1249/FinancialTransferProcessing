@@ -1,8 +1,10 @@
 # Tarefa 9 — Criar fundação de testes e cobrir o core
 
-**Status:** Pronto  
-**Fase:** Core  
-**Depende de:** Tarefa 7
+**Status:** Adiado  
+**Fase:** Qualidade pós-core  
+**Depende de:** Tarefa 28
+
+> Esta tarefa está deliberadamente adiada até a conclusão do core funcional e não bloqueia as tarefas de implementação.
 
 ## Problema
 

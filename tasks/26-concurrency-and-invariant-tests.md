@@ -1,7 +1,7 @@
 # Tarefa 26 — Validar invariantes financeiros sob concorrência
 
-**Status:** Backlog  
-**Fase:** Qualidade  
+**Status:** Adiado  
+**Fase:** Qualidade pós-core  
 **Depende de:** Tarefas 16 e 25
 
 ## Problema

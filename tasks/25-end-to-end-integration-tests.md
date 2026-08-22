@@ -1,8 +1,10 @@
 # Tarefa 25 — Cobrir o fluxo completo com testes de integração
 
-**Status:** Backlog  
-**Fase:** Qualidade  
-**Depende de:** Tarefas 18 e 24
+**Status:** Adiado  
+**Fase:** Qualidade pós-core  
+**Depende de:** Tarefa 9
+
+> Esta tarefa está deliberadamente adiada até a conclusão do core funcional e não bloqueia a prontidão operacional inicial.
 
 ## Problema
 

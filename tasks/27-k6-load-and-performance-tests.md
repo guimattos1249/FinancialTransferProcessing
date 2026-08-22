@@ -1,7 +1,7 @@
 # Tarefa 27 — Medir carga e comparar estratégias de concorrência
 
-**Status:** Backlog  
-**Fase:** Performance  
+**Status:** Adiado  
+**Fase:** Qualidade pós-core  
 **Depende de:** Tarefas 20 e 26
 
 ## Problema

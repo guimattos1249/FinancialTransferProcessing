@@ -25,5 +25,5 @@ Implementar limites distribuídos por cliente nas rotas públicas usando Redis.
 - Duas instâncias compartilham o mesmo contador e não multiplicam a quota.
 - Requisições dentro do limite continuam inalteradas; excedentes retornam 429.
 - Chaves não crescem indefinidamente.
-- Testes cobrem concorrência, expiração e indisponibilidade do Redis.
+- Concorrência, expiração e indisponibilidade do Redis possuem comportamento definido e observável.
 

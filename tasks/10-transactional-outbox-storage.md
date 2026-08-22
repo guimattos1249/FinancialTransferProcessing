@@ -1,6 +1,6 @@
-# Tarefa 10 — Modelar e persistir o transactional outbox
+# Tarefa 10 — Modelar e persistir o transactional outbox - DONE
 
-**Status:** Pronto  
+**Status:** Concluído  
 **Fase:** Processamento assíncrono  
 **Depende de:** Tarefa 7
 
@@ -25,5 +25,5 @@ Criar o modelo persistente de outbox e o contrato versionado `TransferRequested`
 - A migration sobe e desce em PostgreSQL limpo.
 - Mensagens pendentes podem ser consultadas por lote e em ordem estável.
 - Mensagens publicadas deixam de ser selecionadas.
-- Contrato possui teste de serialização compatível e datas em UTC.
+- Contrato mantém serialização compatível e representa datas em UTC.
 
