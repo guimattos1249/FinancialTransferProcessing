@@ -25,5 +25,5 @@ Adotar e documentar uma estratégia de concorrência no PostgreSQL que preserve 
 - Concorrência sobre o mesmo payer nunca produz saldo negativo.
 - Transferências A→B e B→A concorrentes não entram em deadlock permanente.
 - Não há lost update em payer nem payee.
-- Os testes demonstram conservação de saldo com mais de uma instância de processamento.
+- A estratégia preserva a conservação de saldo com mais de uma instância de processamento.
 

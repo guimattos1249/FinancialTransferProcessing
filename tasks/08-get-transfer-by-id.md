@@ -25,5 +25,5 @@ Criar `GET /api/v1/Transfer/{id}` para retornar o estado atual e os dados públi
 - Transferências `Pending`, `Completed` e `Failed` são representadas corretamente.
 - `failureReason` só possui valor para uma falha e `processedAt` só após um estado terminal.
 - Identificador inválido é rejeitado e um ID inexistente retorna 404.
-- Consulta sem tracking e cancelamento são verificáveis por teste.
+- Consulta usa `AsNoTracking` e propaga o `CancellationToken` recebido.
 
