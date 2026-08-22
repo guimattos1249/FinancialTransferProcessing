@@ -1,4 +1,4 @@
-# Tarefa 7 — Criar transferência pendente com idempotência
+# Tarefa 7 — Criar transferência pendente com idempotência - DONE
 
 ## Problema
 
