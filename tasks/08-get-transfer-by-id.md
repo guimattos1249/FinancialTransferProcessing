@@ -1,4 +1,4 @@
-# Tarefa 8 — Consultar transferência por ID
+# Tarefa 8 — Consultar transferência por ID - DONE
 
 **Status:** Pronto  
 **Fase:** Core  
