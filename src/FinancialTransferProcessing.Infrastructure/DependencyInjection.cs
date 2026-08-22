@@ -1,6 +1,8 @@
 ﻿using FinancialTransferProcessing.Application.Contracts;
+using FinancialTransferProcessing.Application.Contracts.Messaging;
 using FinancialTransferProcessing.Application.Contracts.Repositories.Accounts;
 using FinancialTransferProcessing.Application.Contracts.Repositories.Transfers;
+using FinancialTransferProcessing.Infrastructure.Messaging;
 using FinancialTransferProcessing.Infrastructure.Persistence;
 using FinancialTransferProcessing.Infrastructure.Repositories;
 using FinancialTransferProcessing.Infrastructure.Repositories.Accounts;
@@ -29,6 +31,8 @@ public static class DependencyInjection
         services.AddScoped<ITransferReadOnlyRepository, TransferRepository>();
         services.AddScoped<ITransferWriteOnlyRepository, TransferRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        services.AddSingleton<IMessageSerializer, SystemTextJsonMessageSerializer>();
 
         return services;
     }
