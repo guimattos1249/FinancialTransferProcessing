@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FinancialTransferProcessing.Infrastructure.Repositories.OutboxMessages;
 
-internal class OutboxMessageRepository(ApplicationDbContext context) : IOutboxMessageWriteOnlyRepository, IOutboxMessageReadOnlyRepository
+public sealed class OutboxMessageRepository(ApplicationDbContext context) : IOutboxMessageWriteOnlyRepository, IOutboxMessageReadOnlyRepository
 {
     public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
