@@ -5,7 +5,7 @@ namespace FinancialTransferProcessing.Application.Contracts.Repositories.OutboxM
 public interface IOutboxMessageReadOnlyRepository
 {
     Task<IReadOnlyList<OutboxMessage>> GetPublishableBatchAsync(
-        DateTimeOffset currentDate,
+        DateTimeOffset currentDateUtc,
         int batchSize,
         CancellationToken cancellationToken = default);
 }

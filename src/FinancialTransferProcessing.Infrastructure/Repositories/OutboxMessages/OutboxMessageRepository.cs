@@ -2,7 +2,6 @@
 using FinancialTransferProcessing.Domain.Entities;
 using FinancialTransferProcessing.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Principal;
 
 namespace FinancialTransferProcessing.Infrastructure.Repositories.OutboxMessages;
 
@@ -13,18 +12,29 @@ internal class OutboxMessageRepository(ApplicationDbContext context) : IOutboxMe
         await context.OutboxMessages.AddAsync(message, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<OutboxMessage>> GetPublishableBatchAsync(DateTimeOffset currentDate, int batchSize, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<OutboxMessage>> GetPublishableBatchAsync(DateTimeOffset currentDateUtc, int batchSize, CancellationToken cancellationToken = default)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(
+        batchSize,
+        1);
+
+        if (currentDateUtc.Offset != TimeSpan.Zero)
+        {
+            throw new ArgumentException(
+                "Current date must be in UTC.",
+                nameof(currentDateUtc));
+        }
+
         return await context.OutboxMessages
             .Where(message =>
                 message.PublishedAt == null
                 && (
                     message.NextAttemptAt == null
-                    || message.NextAttemptAt <= currentDate
+                    || message.NextAttemptAt <= currentDateUtc
                 ))
             .OrderBy(message => message.OccurredAt)
             .ThenBy(message => message.MessageId)
             .Take(batchSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 }

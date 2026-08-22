@@ -2,10 +2,7 @@
 
 public interface IMessageSerializer
 {
-    public interface IMessageSerializer
-    {
-        string Serialize<TMessage>(TMessage message);
+    string Serialize<TMessage>(TMessage message);
 
-        TMessage Deserialize<TMessage>(string payload);
-    }
+    TMessage Deserialize<TMessage>(string payload);
 }
