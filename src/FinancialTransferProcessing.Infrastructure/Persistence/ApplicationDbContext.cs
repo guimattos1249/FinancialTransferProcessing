@@ -9,6 +9,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<Transfer> Transfers => Set<Transfer>();
     public DbSet<ProcessedMessage> ProcessedMessages => Set<ProcessedMessage>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
