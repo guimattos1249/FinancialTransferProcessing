@@ -13,6 +13,9 @@ public sealed class TransferRepository(ApplicationDbContext context)
         CancellationToken cancellationToken = default) =>
         await context.Transfers.AddAsync(transfer, cancellationToken);
 
+    public async Task<Transfer?> GetByIdAsync(Guid Id, CancellationToken cancellationToken = default) =>
+        await context.Transfers.AsNoTracking().SingleOrDefaultAsync(t => t.Id == Id, cancellationToken);
+
     public Task<Transfer?> GetByIdempotencyKeyAsync(
         string idempotencyKey,
         CancellationToken cancellationToken = default) => context.Transfers

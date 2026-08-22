@@ -5,4 +5,5 @@ namespace FinancialTransferProcessing.Application.Contracts.Repositories.Transfe
 public interface ITransferReadOnlyRepository
 {
     Task<Transfer?> GetByIdempotencyKeyAsync(string IdempotencyKey, CancellationToken cancellationToken = default);
+    Task<Transfer?> GetByIdAsync(Guid Id, CancellationToken cancellationToken = default);
 }

@@ -25,7 +25,7 @@ public class AccountController : ApiController
     [Route("{id}")]
     [ProducesResponseType(typeof(GetAccountByIdResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseError), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetAccountById(
+    public async Task<IActionResult> GetById(
             [FromServices] IGetAccountByIdUseCase useCase,
             [FromRoute] Guid Id,
             CancellationToken cancellationToken)

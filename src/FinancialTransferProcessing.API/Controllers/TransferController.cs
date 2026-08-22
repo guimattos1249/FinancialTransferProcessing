@@ -1,5 +1,6 @@
 ﻿using FinancialTransferProcessing.API.Filters;
 using FinancialTransferProcessing.Application.UseCases.Transfers.CreateTransfer;
+using FinancialTransferProcessing.Application.UseCases.Transfers.GetTransferById;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -22,5 +23,20 @@ public class TransferController : ApiController
         var response = await useCase.Execute(request, IdempotencyKey, cancellationToken);
 
         return Accepted(string.Empty, response);
+    }
+
+    [HttpGet]
+    [Route("{id}")]
+    [ProducesResponseType(typeof(GetTransferByIdResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ResponseError), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ResponseError), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetById(
+            [FromServices] IGetTransferByIdUseCase useCase,
+            [FromRoute] Guid Id,
+            CancellationToken cancellationToken)
+    {
+        var response = await useCase.Execute(Id, cancellationToken);
+
+        return Ok(response);
     }
 }
