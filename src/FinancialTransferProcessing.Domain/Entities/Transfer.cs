@@ -26,7 +26,7 @@ public class Transfer : EntityBase
         SetPayee(payeeId);
         SetAmountInCents(amountInCents);
         IdempotencyKey = ValidateIdempotencyKey(idempotencyKey);
-        CorrelationId = correlationId;
+        CorrelationId = DomainValidation.ValidateCorrelationId(correlationId);
     }
 
     public Guid PayerId { get; private set; }
