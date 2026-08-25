@@ -1,12 +1,12 @@
 using System.Text;
 using FinancialTransferProcessing.Domain.Exceptions;
+using FinancialTransferProcessing.Domain.Validations;
 
 namespace FinancialTransferProcessing.Domain.Entities;
 
 public sealed class OutboxMessage
 {
     public const int MaxTypeLength = 100;
-    public const int MaxCorrelationIdLength = 100;
     public const int MaxLastErrorLength = 2_000;
     public const int MaxPayloadSizeInBytes = 64 * 1024;
 
@@ -38,7 +38,7 @@ public sealed class OutboxMessage
         SchemaVersion = ValidateSchemaVersion(schemaVersion);
         Payload = ValidatePayload(payload);
         OccurredAt = ValidateUtcDate(occurredAt, nameof(occurredAt));
-        CorrelationId = ValidateCorrelationId(correlationId);
+        CorrelationId = DomainValidation.ValidateCorrelationId(correlationId);
     }
 
     public void RegisterFailedAttempt(
@@ -116,19 +116,6 @@ public sealed class OutboxMessage
             throw new DomainException($"Payload cannot exceed {MaxPayloadSizeInBytes} bytes.");
 
         return payload;
-    }
-
-    private static string ValidateCorrelationId(string correlationId)
-    {
-        if (string.IsNullOrWhiteSpace(correlationId))
-            throw new DomainException("Correlation ID cannot be empty.");
-
-        var normalizedCorrelationId = correlationId.Trim();
-
-        if (normalizedCorrelationId.Length > MaxCorrelationIdLength)
-            throw new DomainException($"Correlation ID cannot exceed {MaxCorrelationIdLength} characters.");
-
-        return normalizedCorrelationId;
     }
 
     private static string ValidateLastError(string error)

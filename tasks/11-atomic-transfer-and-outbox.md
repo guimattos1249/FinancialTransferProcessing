@@ -1,4 +1,4 @@
-# Tarefa 11 — Gravar transferência e evento atomicamente
+# Tarefa 11 — Gravar transferência e evento atomicamente - DONE
 
 **Status:** Backlog  
 **Fase:** Processamento assíncrono  

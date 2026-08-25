@@ -1,5 +1,7 @@
 ﻿using FinancialTransferProcessing.Application.Contracts;
+using FinancialTransferProcessing.Application.Contracts.Messaging;
 using FinancialTransferProcessing.Application.Contracts.Repositories.Accounts;
+using FinancialTransferProcessing.Application.Contracts.Repositories.OutboxMessages;
 using FinancialTransferProcessing.Application.Contracts.Repositories.Transfers;
 using FinancialTransferProcessing.Application.Exceptions;
 using FinancialTransferProcessing.Domain.Entities;
@@ -7,18 +9,35 @@ using FinancialTransferProcessing.Domain.Exceptions;
 
 namespace FinancialTransferProcessing.Application.UseCases.Transfers.CreateTransfer;
 
-public class CreateTransferUseCase(IAccountReadOnlyRepository accountReadOnlyRepository, ITransferReadOnlyRepository transferReadOnlyRepository, ITransferWriteOnlyRepository transferWriteOnlyRepository, IUnitOfWork unitOfWork) : ICreateTransferUseCase
+public class CreateTransferUseCase(
+    IAccountReadOnlyRepository accountReadOnlyRepository, 
+    ITransferReadOnlyRepository transferReadOnlyRepository, 
+    ITransferWriteOnlyRepository transferWriteOnlyRepository,
+    IOutboxMessageWriteOnlyRepository outboxWriteOnlyRepository,
+    IMessageSerializer messageSerializer,
+    IUnitOfWork unitOfWork) : ICreateTransferUseCase
 {
     private readonly IAccountReadOnlyRepository _accountReadOnlyRepository = accountReadOnlyRepository;
     private readonly ITransferReadOnlyRepository _transferReadOnlyRepository = transferReadOnlyRepository;
     private readonly ITransferWriteOnlyRepository _transferWriteOnlyRepository = transferWriteOnlyRepository;
+    private readonly IOutboxMessageWriteOnlyRepository _outboxWriteOnlyRepository = outboxWriteOnlyRepository;
+    private readonly IMessageSerializer _messageSerializer = messageSerializer;
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
-    public async Task<CreateTransferResponse> Execute(CreateTransferRequest request, Guid idempotencyKey, CancellationToken cancellationToken = default)
+    public async Task<CreateTransferResponse> Execute(
+        CreateTransferRequest request, 
+        Guid idempotencyKey, 
+        string? correlationId, 
+        CancellationToken cancellationToken = default)
     {
         Validate(request);
 
         if (idempotencyKey == Guid.Empty)
             throw new ErrorOnValidationException(["Idempotency-Key is required"]);
+
+        var effectiveCorrelationId =
+        string.IsNullOrWhiteSpace(correlationId)
+            ? Guid.CreateVersion7().ToString()
+            : correlationId.Trim();
 
         var key = idempotencyKey.ToString();
 
@@ -42,9 +61,31 @@ public class CreateTransferUseCase(IAccountReadOnlyRepository accountReadOnlyRep
 
         try
         {
-            var transfer = new Transfer(request.PayerId, request.PayeeId, request.AmountInCents, key);
+            var transfer = new Transfer(request.PayerId, request.PayeeId, request.AmountInCents, key, effectiveCorrelationId);
+            
+            var messageId = Guid.CreateVersion7();
+            var occurredAt = DateTimeOffset.UtcNow;
+
+            var transferRequested = new TransferRequested(
+                messageId, 
+                transfer.Id, 
+                occurredAt, 
+                effectiveCorrelationId, 
+                TransferRequested.CurrentSchemaVersion);
+
+            var payload = _messageSerializer.Serialize(transferRequested);
+            
+            var outboxMessage = new OutboxMessage(
+                messageId, 
+                TransferRequested.MessageType, 
+                TransferRequested.CurrentSchemaVersion,
+                payload,
+                occurredAt,
+                effectiveCorrelationId);
 
             await _transferWriteOnlyRepository.CreateAsync(transfer, cancellationToken);
+
+            await _outboxWriteOnlyRepository.AddAsync(outboxMessage, cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

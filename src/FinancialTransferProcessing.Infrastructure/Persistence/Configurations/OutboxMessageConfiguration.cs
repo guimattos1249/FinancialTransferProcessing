@@ -1,4 +1,5 @@
 ﻿using FinancialTransferProcessing.Domain.Entities;
+using FinancialTransferProcessing.Domain.Validations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -25,7 +26,8 @@ internal sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outb
         builder.Property(message => message.PublishedAt).HasColumnName("published_at");
         builder.Property(message => message.AttemptCount).HasColumnName("attempt_count");
         builder.Property(message => message.LastError).HasColumnName("last_error").HasMaxLength(OutboxMessage.MaxLastErrorLength);
-        builder.Property(message => message.CorrelationId).HasColumnName("correlation_id").HasMaxLength(OutboxMessage.MaxCorrelationIdLength).IsRequired();
+        builder.Property(message => message.CorrelationId).
+            HasColumnName("correlation_id").HasMaxLength(DomainValidation.MaxCorrelationIdLength).IsRequired();
 
         builder.HasIndex(message => new
             {

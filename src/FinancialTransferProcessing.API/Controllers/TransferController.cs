@@ -17,10 +17,11 @@ public class TransferController : ApiController
     public async Task<IActionResult> Create(
             [FromServices] ICreateTransferUseCase useCase,
             [FromHeader(Name = "Idempotency-Key"), BindRequired] Guid IdempotencyKey,
+            [FromHeader(Name = "X-Correlation-ID")] string? correlationId,
             [FromBody] CreateTransferRequest request,
             CancellationToken cancellationToken)
     {
-        var response = await useCase.Execute(request, IdempotencyKey, cancellationToken);
+        var response = await useCase.Execute(request, IdempotencyKey, correlationId, cancellationToken);
 
         return Accepted(string.Empty, response);
     }
