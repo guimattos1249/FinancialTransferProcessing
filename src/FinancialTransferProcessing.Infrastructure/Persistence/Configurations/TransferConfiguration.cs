@@ -1,4 +1,5 @@
 using FinancialTransferProcessing.Domain.Entities;
+using FinancialTransferProcessing.Domain.Validations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,7 +20,8 @@ internal sealed class TransferConfiguration : IEntityTypeConfiguration<Transfer>
         builder.Property(transfer => transfer.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(transfer => transfer.ProcessedAt).HasColumnName("processed_at");
         builder.Property(transfer => transfer.FailureReason).HasColumnName("failure_reason");
-        builder.Property(transfer => transfer.CorrelationId).HasColumnName("correlation_id");
+        builder.Property(message => message.CorrelationId).
+            HasColumnName("correlation_id").HasMaxLength(DomainValidation.MaxCorrelationIdLength).IsRequired();
         builder.Property(transfer => transfer.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(transfer => transfer.UpdatedAt).HasColumnName("updated_at").IsRequired();
         builder.Property(transfer => transfer.DeletedAt).HasColumnName("deleted_at");
