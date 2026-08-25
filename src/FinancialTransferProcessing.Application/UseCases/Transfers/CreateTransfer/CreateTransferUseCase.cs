@@ -34,8 +34,10 @@ public class CreateTransferUseCase(
         if (idempotencyKey == Guid.Empty)
             throw new ErrorOnValidationException(["Idempotency-Key is required"]);
 
-        if (string.IsNullOrWhiteSpace(correlationId))
-            correlationId = Guid.CreateVersion7().ToString();
+        var effectiveCorrelationId =
+        string.IsNullOrWhiteSpace(correlationId)
+            ? Guid.CreateVersion7().ToString()
+            : correlationId.Trim();
 
         var key = idempotencyKey.ToString();
 
@@ -59,12 +61,17 @@ public class CreateTransferUseCase(
 
         try
         {
-            var transfer = new Transfer(request.PayerId, request.PayeeId, request.AmountInCents, key, correlationId);
+            var transfer = new Transfer(request.PayerId, request.PayeeId, request.AmountInCents, key, effectiveCorrelationId);
             
             var messageId = Guid.CreateVersion7();
             var occurredAt = DateTimeOffset.UtcNow;
 
-            var transferRequested = new TransferRequested(messageId, transfer.Id, occurredAt, correlationId, TransferRequested.CurrentSchemaVersion);
+            var transferRequested = new TransferRequested(
+                messageId, 
+                transfer.Id, 
+                occurredAt, 
+                effectiveCorrelationId, 
+                TransferRequested.CurrentSchemaVersion);
 
             var payload = _messageSerializer.Serialize(transferRequested);
             
@@ -74,8 +81,7 @@ public class CreateTransferUseCase(
                 TransferRequested.CurrentSchemaVersion,
                 payload,
                 occurredAt,
-                correlationId);
-
+                effectiveCorrelationId);
 
             await _transferWriteOnlyRepository.CreateAsync(transfer, cancellationToken);
 
