@@ -17,7 +17,8 @@ public class Transfer : EntityBase
         Guid payerId, 
         Guid payeeId,
         long amountInCents,
-        string idempotencyKey)
+        string idempotencyKey,
+        string correlationId)
     {
         ValidatePayerEqualsPayee(payerId, payeeId);
         Status = ETransferStatus.Pending;
@@ -25,6 +26,7 @@ public class Transfer : EntityBase
         SetPayee(payeeId);
         SetAmountInCents(amountInCents);
         IdempotencyKey = ValidateIdempotencyKey(idempotencyKey);
+        CorrelationId = correlationId;
     }
 
     public Guid PayerId { get; private set; }

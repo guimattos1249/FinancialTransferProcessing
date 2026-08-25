@@ -26,7 +26,7 @@ public class CreateTransferUseCase(
     public async Task<CreateTransferResponse> Execute(
         CreateTransferRequest request, 
         Guid idempotencyKey, 
-        string correlationId, 
+        string? correlationId, 
         CancellationToken cancellationToken = default)
     {
         Validate(request);
@@ -59,7 +59,7 @@ public class CreateTransferUseCase(
 
         try
         {
-            var transfer = new Transfer(request.PayerId, request.PayeeId, request.AmountInCents, key);
+            var transfer = new Transfer(request.PayerId, request.PayeeId, request.AmountInCents, key, correlationId);
             
             var messageId = Guid.CreateVersion7();
             var occurredAt = DateTimeOffset.UtcNow;

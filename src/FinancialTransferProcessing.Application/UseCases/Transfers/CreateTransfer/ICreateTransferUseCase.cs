@@ -5,6 +5,6 @@ public interface ICreateTransferUseCase
     public Task<CreateTransferResponse> Execute(
         CreateTransferRequest request, 
         Guid idempotencyKey, 
-        string correlationId, 
+        string? correlationId, 
         CancellationToken cancellationToken = default);
 }
