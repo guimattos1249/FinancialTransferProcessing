@@ -62,9 +62,9 @@ public class CreateTransferUseCase(
             var transfer = new Transfer(request.PayerId, request.PayeeId, request.AmountInCents, key);
             
             var messageId = Guid.CreateVersion7();
-            var ocurredAt = DateTimeOffset.UtcNow;
+            var occurredAt = DateTimeOffset.UtcNow;
 
-            var transferRequested = new TransferRequested(messageId, transfer.Id, ocurredAt, correlationId, TransferRequested.CurrentSchemaVersion);
+            var transferRequested = new TransferRequested(messageId, transfer.Id, occurredAt, correlationId, TransferRequested.CurrentSchemaVersion);
 
             var payload = _messageSerializer.Serialize(transferRequested);
             
@@ -73,7 +73,7 @@ public class CreateTransferUseCase(
                 TransferRequested.MessageType, 
                 TransferRequested.CurrentSchemaVersion,
                 payload,
-                ocurredAt,
+                occurredAt,
                 correlationId);
 
 
