@@ -12,6 +12,10 @@ Não existe broker configurado nem uma topologia reproduzível para transportar 
 
 Adicionar a infraestrutura RabbitMQ e declarar a topologia durável da aplicação.
 
+## Decisão arquitetural
+
+A integração usará o cliente oficial `RabbitMQ.Client`, conforme a [ADR 0001](../docs/adr/0001-use-rabbitmq-client.md).
+
 ## Implementação esperada
 
 - Adicionar RabbitMQ ao Docker Compose com health check, volume e credenciais configuráveis.
