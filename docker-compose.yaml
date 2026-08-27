@@ -33,5 +33,26 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  financial-transfer-processing-rabbitmq:
+    container_name: financial-transfer-processing-rabbitmq
+    hostname: financial-transfer-processing-rabbitmq
+    image: rabbitmq:4.3.5-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-financial_transfers}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-financial_transfers}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - financial_transfer_processing_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
 volumes:
   financial_transfer_processing_pg_data:
+  financial_transfer_processing_rabbitmq_data:
