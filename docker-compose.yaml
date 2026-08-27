@@ -31,6 +31,8 @@ services:
     depends_on:
       financial-transfer-processing-pg:
         condition: service_healthy
+      financial-transfer-processing-rabbitmq:
+        condition: service_healthy
     restart: unless-stopped
 
   financial-transfer-processing-rabbitmq:
