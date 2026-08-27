@@ -36,8 +36,7 @@ public class Transfer : EntityBase
     public ETransferStatus Status { get; private set; }
     public DateTimeOffset? ProcessedAt { get; private set; }
     public string? FailureReason { get; private set; }
-    public string? CorrelationId { get; private set; }
-
+    public string CorrelationId { get; private set; } = null!;
     public Account Payer { get; private set; } = null!;
     public Account Payee { get; private set; } = null!;
 
