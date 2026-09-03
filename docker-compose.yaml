@@ -26,6 +26,12 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=financial-transfer-processing-pg;Port=5432;Database=financial_transfer_processing;Username=postgres;Password=postgres
       Database__ApplyMigrations: "true"
+      RabbitMq__HostName: financial-transfer-processing-rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__UserName: "${RABBITMQ_USER:?RABBITMQ_USER must be set in .env}"
+      RabbitMq__Password: "${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set in .env}"
+      RabbitMq__ClientProvidedName: financial-transfer-processing-api
     ports:
       - "5033:8080"
     depends_on:
@@ -40,8 +46,9 @@ services:
     hostname: financial-transfer-processing-rabbitmq
     image: rabbitmq:4.3.5-management-alpine
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-financial_transfers}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-financial_transfers}
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USER:?RABBITMQ_USER must be set in .env}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set in .env}"
+      RABBITMQ_DEFAULT_VHOST: "/"
     ports:
       - "5672:5672"
       - "15672:15672"

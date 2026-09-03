@@ -1,6 +1,6 @@
 ﻿namespace FinancialTransferProcessing.Infrastructure.Messaging;
 
-public class RabbitMqOptions
+public sealed class RabbitMqOptions
 {
     public const string SectionName = "RabbitMq";
 

@@ -12,6 +12,7 @@ using FinancialTransferProcessing.Infrastructure.Repositories.Transfers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace FinancialTransferProcessing.Infrastructure;
 
@@ -27,6 +28,12 @@ public static class DependencyInjection
 
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString));
+
+        services.AddSingleton<IValidateOptions<RabbitMqOptions>, RabbitMqOptionsValidator>();
+
+        services.AddOptions<RabbitMqOptions>()
+            .Bind(configuration.GetSection(RabbitMqOptions.SectionName))
+            .ValidateOnStart();
 
         services.AddScoped<IAccountReadOnlyRepository, AccountRepository>();
         services.AddScoped<IAccountWriteOnlyRepository, AccountRepository>();

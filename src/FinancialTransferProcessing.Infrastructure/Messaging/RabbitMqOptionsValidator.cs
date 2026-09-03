@@ -2,7 +2,7 @@
 
 namespace FinancialTransferProcessing.Infrastructure.Messaging;
 
-internal class RabbitMqOptionsValidator : IValidateOptions<RabbitMqOptions>
+internal sealed class RabbitMqOptionsValidator : IValidateOptions<RabbitMqOptions>
 {
     public ValidateOptionsResult Validate(string? name, RabbitMqOptions options)
     {
