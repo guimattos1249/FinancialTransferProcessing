@@ -45,6 +45,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IMessageSerializer, SystemTextJsonMessageSerializer>();
         services.AddSingleton<RabbitMqConnectionProvider>();
+        services.AddHostedService<RabbitMqTopologyInitializer>();
 
         return services;
     }
