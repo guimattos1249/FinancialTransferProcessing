@@ -10,4 +10,5 @@ public sealed class RabbitMqOptions
     public string UserName { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public string ClientProvidedName { get; set; } = string.Empty;
+    public RabbitMqRetryOptions Retry { get; set; } = new();
 }

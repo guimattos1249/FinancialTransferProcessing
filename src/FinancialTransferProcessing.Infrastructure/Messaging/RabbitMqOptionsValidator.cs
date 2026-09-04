@@ -26,6 +26,33 @@ internal sealed class RabbitMqOptionsValidator : IValidateOptions<RabbitMqOption
         if (string.IsNullOrWhiteSpace(options.ClientProvidedName))
             failures.Add("RabbitMq:ClientProvidedName must be configured");
 
+        var retryDelays = options.Retry?.Delays;
+
+        if (retryDelays is null || retryDelays.Count == 0)
+        {
+            failures.Add("RabbitMq:Retry:Delays must contain at least one delay");
+        }
+        else
+        {
+            if (retryDelays.Any(delay => delay <= TimeSpan.Zero))
+            {
+                failures.Add(
+                    "RabbitMq:Retry:Delays must contain only positive values");
+            }
+
+            if (retryDelays.Distinct().Count() != retryDelays.Count)
+            {
+                failures.Add(
+                    "RabbitMq:Retry:Delays must not contain duplicate values");
+            }
+
+            if (!retryDelays.SequenceEqual(retryDelays.Order()))
+            {
+                failures.Add(
+                    "RabbitMq:Retry:Delays must be ordered from shortest to longest");
+            }
+        }
+
         return failures.Count > 0
             ? ValidateOptionsResult.Fail(failures)
             : ValidateOptionsResult.Success;
