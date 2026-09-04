@@ -51,6 +51,12 @@ internal sealed class RabbitMqOptionsValidator : IValidateOptions<RabbitMqOption
                 failures.Add(
                     "RabbitMq:Retry:Delays must be ordered from shortest to longest");
             }
+            
+            if (retryDelays.Any(delay => delay.Ticks % TimeSpan.TicksPerMillisecond != 0))
+            {
+                failures.Add(
+                    "RabbitMq:Retry:Delays must use whole millisecond values");
+            }
         }
 
         return failures.Count > 0

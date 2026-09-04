@@ -1,4 +1,4 @@
-# Tarefa 12 — Configurar RabbitMQ, contratos e topologia
+# Tarefa 12 — Configurar RabbitMQ, contratos e topologia - Done
 
 **Status:** Backlog  
 **Fase:** Processamento assíncrono  
