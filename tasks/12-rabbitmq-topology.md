@@ -1,4 +1,4 @@
-# Tarefa 12 — Configurar RabbitMQ, contratos e topologia
+# Tarefa 12 — Configurar RabbitMQ, contratos e topologia - Done
 
 **Status:** Backlog  
 **Fase:** Processamento assíncrono  
@@ -11,6 +11,10 @@ Não existe broker configurado nem uma topologia reproduzível para transportar 
 ## Objetivo
 
 Adicionar a infraestrutura RabbitMQ e declarar a topologia durável da aplicação.
+
+## Decisão arquitetural
+
+A integração usará o cliente oficial `RabbitMQ.Client`, conforme a [ADR 0001](../docs/adr/0001-use-rabbitmq-client.md).
 
 ## Implementação esperada
 

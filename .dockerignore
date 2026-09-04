@@ -3,6 +3,7 @@
 .git/
 .github/
 .vs/
+.env
 artifacts/
 Dockerfile*
 docker-compose*.yml

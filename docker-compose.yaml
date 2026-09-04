@@ -26,12 +26,42 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=financial-transfer-processing-pg;Port=5432;Database=financial_transfer_processing;Username=postgres;Password=postgres
       Database__ApplyMigrations: "true"
+      RabbitMq__HostName: financial-transfer-processing-rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__UserName: "${RABBITMQ_USER:?RABBITMQ_USER must be set in .env}"
+      RabbitMq__Password: "${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set in .env}"
+      RabbitMq__ClientProvidedName: financial-transfer-processing-api
     ports:
       - "5033:8080"
     depends_on:
       financial-transfer-processing-pg:
         condition: service_healthy
+      financial-transfer-processing-rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  financial-transfer-processing-rabbitmq:
+    container_name: financial-transfer-processing-rabbitmq
+    hostname: financial-transfer-processing-rabbitmq
+    image: rabbitmq:4.3.5-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USER:?RABBITMQ_USER must be set in .env}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set in .env}"
+      RABBITMQ_DEFAULT_VHOST: "/"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - financial_transfer_processing_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
     restart: unless-stopped
 
 volumes:
   financial_transfer_processing_pg_data:
+  financial_transfer_processing_rabbitmq_data:
