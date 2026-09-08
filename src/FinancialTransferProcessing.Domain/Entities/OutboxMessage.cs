@@ -45,6 +45,7 @@ public sealed class OutboxMessage
     }
 
     public void RegisterFailedAttempt(
+        Guid leaseId,
         string error,
         DateTimeOffset attemptedAt,
         DateTimeOffset nextAttemptAt)
@@ -61,12 +62,16 @@ public sealed class OutboxMessage
         if (validatedNextAttemptAt <= validatedAttemptedAt)
             throw new DomainException("Next attempt date must be later than the current attempt date.");
 
+        EnsureActiveLease(leaseId, validatedAttemptedAt);
+
         IncrementAttemptCount();
         LastError = validatedError;
         NextAttemptAt = validatedNextAttemptAt;
+        LeaseId = null;
+        LeaseExpiresAt = null;
     }
 
-    public void MarkAsPublished(DateTimeOffset publishedAt)
+    public void MarkAsPublished(Guid leaseId, DateTimeOffset publishedAt)
     {
         EnsureNotPublished();
 
@@ -75,10 +80,14 @@ public sealed class OutboxMessage
         if (validatedPublishedAt < OccurredAt)
             throw new DomainException("Publication date cannot be earlier than the message occurrence date.");
 
+        EnsureActiveLease(leaseId, validatedPublishedAt);
+
         IncrementAttemptCount();
         PublishedAt = validatedPublishedAt;
         NextAttemptAt = null;
         LastError = null;
+        LeaseId = null;
+        LeaseExpiresAt = null;
     }
 
     private static Guid ValidateMessageId(Guid messageId)
@@ -155,5 +164,25 @@ public sealed class OutboxMessage
         if (leaseId == Guid.Empty) throw new DomainException("Lease Id cannot be empty.");
 
         var validatedAcquiredAt = DomainValidation.ValidateUtcDate(acquiredAt, nameof(acquiredAt));
+        var validatedLeaseExpiresAt = DomainValidation.ValidateUtcDate(leaseExpiresAt, nameof(leaseExpiresAt));
+
+        if (validatedLeaseExpiresAt <= validatedAcquiredAt)
+            throw new DomainException("Lease expiration date must be later than the acquisition date.");
+
+        if (LeaseExpiresAt.HasValue && LeaseExpiresAt > validatedAcquiredAt)
+            throw new DomainException("The outbox message already has an active lease.");
+
+        LeaseId = leaseId;
+        LeaseExpiresAt = validatedLeaseExpiresAt;
+    }
+
+    private void EnsureActiveLease(Guid leaseId, DateTimeOffset currentDate)
+    {
+        if (leaseId == Guid.Empty)
+            throw new DomainException("The Lease Id cannot be empty.");
+        if (LeaseId != leaseId)
+            throw new DomainException("The provided lease Id does not match the current lease ID.");
+        if (!LeaseExpiresAt.HasValue || LeaseExpiresAt <= currentDate)
+            throw new DomainException("The lease has expired or is not active.");
     }
 }
