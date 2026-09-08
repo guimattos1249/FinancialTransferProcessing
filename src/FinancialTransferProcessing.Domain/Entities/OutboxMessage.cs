@@ -90,6 +90,26 @@ public sealed class OutboxMessage
         LeaseExpiresAt = null;
     }
 
+    public void AcquireLease(Guid leaseId, DateTimeOffset acquiredAt, DateTimeOffset leaseExpiresAt)
+    {
+        EnsureNotPublished();
+
+        if (leaseId == Guid.Empty) throw new DomainException("Lease Id cannot be empty.");
+
+        var validatedAcquiredAt = DomainValidation.ValidateUtcDate(acquiredAt, nameof(acquiredAt));
+        var validatedLeaseExpiresAt = DomainValidation.ValidateUtcDate(leaseExpiresAt, nameof(leaseExpiresAt));
+
+        if (validatedLeaseExpiresAt <= validatedAcquiredAt)
+            throw new DomainException("Lease expiration date must be later than the acquisition date.");
+
+        if (LeaseExpiresAt.HasValue && LeaseExpiresAt > validatedAcquiredAt)
+            throw new DomainException("The outbox message already has an active lease.");
+
+        LeaseId = leaseId;
+        LeaseExpiresAt = validatedLeaseExpiresAt;
+    }
+
+
     private static Guid ValidateMessageId(Guid messageId)
     {
         if (messageId == Guid.Empty)
@@ -155,25 +175,6 @@ public sealed class OutboxMessage
             throw new DomainException("Attempt count has reached its maximum value.");
 
         AttemptCount++;
-    }
-
-    public void AcquireLease(Guid leaseId, DateTimeOffset acquiredAt, DateTimeOffset leaseExpiresAt)
-    {
-        EnsureNotPublished();
-
-        if (leaseId == Guid.Empty) throw new DomainException("Lease Id cannot be empty.");
-
-        var validatedAcquiredAt = DomainValidation.ValidateUtcDate(acquiredAt, nameof(acquiredAt));
-        var validatedLeaseExpiresAt = DomainValidation.ValidateUtcDate(leaseExpiresAt, nameof(leaseExpiresAt));
-
-        if (validatedLeaseExpiresAt <= validatedAcquiredAt)
-            throw new DomainException("Lease expiration date must be later than the acquisition date.");
-
-        if (LeaseExpiresAt.HasValue && LeaseExpiresAt > validatedAcquiredAt)
-            throw new DomainException("The outbox message already has an active lease.");
-
-        LeaseId = leaseId;
-        LeaseExpiresAt = validatedLeaseExpiresAt;
     }
 
     private void EnsureActiveLease(Guid leaseId, DateTimeOffset currentDate)
