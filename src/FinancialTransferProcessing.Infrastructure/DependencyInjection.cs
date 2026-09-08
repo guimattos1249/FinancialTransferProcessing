@@ -57,6 +57,8 @@ public static class DependencyInjection
         services.AddSingleton<RabbitMqConnectionProvider>();
         services.AddHostedService<RabbitMqTopologyInitializer>();
 
+        services.AddSingleton<IOutboxMessagePublisher, RabbitMqOutboxMessagePublisher>();
+
         return services;
     }
 }
