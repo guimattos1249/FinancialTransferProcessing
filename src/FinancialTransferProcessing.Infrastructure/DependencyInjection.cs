@@ -4,6 +4,7 @@ using FinancialTransferProcessing.Application.Contracts.Repositories.Accounts;
 using FinancialTransferProcessing.Application.Contracts.Repositories.OutboxMessages;
 using FinancialTransferProcessing.Application.Contracts.Repositories.Transfers;
 using FinancialTransferProcessing.Infrastructure.Messaging;
+using FinancialTransferProcessing.Infrastructure.Messaging.OutboxPublishing;
 using FinancialTransferProcessing.Infrastructure.Persistence;
 using FinancialTransferProcessing.Infrastructure.Repositories;
 using FinancialTransferProcessing.Infrastructure.Repositories.Accounts;
@@ -33,6 +34,14 @@ public static class DependencyInjection
 
         services.AddOptions<RabbitMqOptions>()
             .Bind(configuration.GetSection(RabbitMqOptions.SectionName))
+            .ValidateOnStart();
+
+        services.AddSingleton<
+            IValidateOptions<OutboxPublisherOptions>,
+            OutboxPublisherOptionsValidator>();
+
+        services.AddOptions<OutboxPublisherOptions>()
+            .Bind(configuration.GetSection(OutboxPublisherOptions.SectionName))
             .ValidateOnStart();
 
         services.AddScoped<IAccountReadOnlyRepository, AccountRepository>();
