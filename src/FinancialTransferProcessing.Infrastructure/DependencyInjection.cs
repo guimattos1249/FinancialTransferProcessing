@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<ITransferWriteOnlyRepository, TransferRepository>();
         services.AddScoped<IOutboxMessageReadOnlyRepository, OutboxMessageRepository>();
         services.AddScoped<IOutboxMessageWriteOnlyRepository, OutboxMessageRepository>();
+        services.AddScoped<IOutboxMessageLeaseRepository, OutboxMessageRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddSingleton<IMessageSerializer, SystemTextJsonMessageSerializer>();
