@@ -109,11 +109,10 @@ public sealed class OutboxMessage
         LeaseExpiresAt = validatedLeaseExpiresAt;
     }
 
-
     private static Guid ValidateMessageId(Guid messageId)
     {
         if (messageId == Guid.Empty)
-            throw new DomainException("Message ID cannot be empty.");
+            throw new DomainException("Message Id cannot be empty.");
 
         return messageId;
     }
