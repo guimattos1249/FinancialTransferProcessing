@@ -1,13 +1,17 @@
 ﻿using FinancialTransferProcessing.Application.Contracts.Messaging;
 using FinancialTransferProcessing.Domain.Entities;
+using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using System.Text;
 
 namespace FinancialTransferProcessing.Infrastructure.Messaging.OutboxPublishing;
 
 internal sealed class RabbitMqOutboxMessagePublisher(
-    RabbitMqConnectionProvider connectionProvider) : IOutboxMessagePublisher
+    RabbitMqConnectionProvider connectionProvider,
+    IOptions<OutboxPublisherOptions> options) : IOutboxMessagePublisher
 {
+    private readonly TimeSpan _publishTimeout = options.Value.PublishTimeout;
+
     public async Task PublishAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
         var connection = await connectionProvider.GetConnectionAsync(cancellationToken);
@@ -24,7 +28,7 @@ internal sealed class RabbitMqOutboxMessagePublisher(
             ContentType = "application/json",
             ContentEncoding = "utf-8",
             MessageId = message.MessageId.ToString(),
-            CorrelationId = message.CorrelationId.ToString(),
+            CorrelationId = message.CorrelationId,
             Type = message.Type,
             Headers = new Dictionary<string, object?>
             {
@@ -34,13 +38,17 @@ internal sealed class RabbitMqOutboxMessagePublisher(
 
         var body = Encoding.UTF8.GetBytes(message.Payload);
 
+        using var publishTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        publishTimeoutCts.CancelAfter(_publishTimeout);
+
         await channel.BasicPublishAsync(
             exchange: RabbitMqTopology.TransfersExchangeName,
             routingKey: ResolveRoutingKey(message.Type),
             mandatory: true,
             basicProperties: properties,
             body: body,
-            cancellationToken: cancellationToken);
+            cancellationToken: publishTimeoutCts.Token);
     }
 
     private static string ResolveRoutingKey(string messageType)
