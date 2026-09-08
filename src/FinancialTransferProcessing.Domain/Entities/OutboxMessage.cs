@@ -40,7 +40,7 @@ public sealed class OutboxMessage
         Type = ValidateType(type);
         SchemaVersion = ValidateSchemaVersion(schemaVersion);
         Payload = ValidatePayload(payload);
-        OccurredAt = ValidateUtcDate(occurredAt, nameof(occurredAt));
+        OccurredAt = DomainValidation.ValidateUtcDate(occurredAt, nameof(occurredAt));
         CorrelationId = DomainValidation.ValidateCorrelationId(correlationId);
     }
 
@@ -51,8 +51,8 @@ public sealed class OutboxMessage
     {
         EnsureNotPublished();
 
-        var validatedAttemptedAt = ValidateUtcDate(attemptedAt, nameof(attemptedAt));
-        var validatedNextAttemptAt = ValidateUtcDate(nextAttemptAt, nameof(nextAttemptAt));
+        var validatedAttemptedAt = DomainValidation.ValidateUtcDate(attemptedAt, nameof(attemptedAt));
+        var validatedNextAttemptAt = DomainValidation.ValidateUtcDate(nextAttemptAt, nameof(nextAttemptAt));
         var validatedError = ValidateLastError(error);
 
         if (validatedAttemptedAt < OccurredAt)
@@ -70,7 +70,7 @@ public sealed class OutboxMessage
     {
         EnsureNotPublished();
 
-        var validatedPublishedAt = ValidateUtcDate(publishedAt, nameof(publishedAt));
+        var validatedPublishedAt = DomainValidation.ValidateUtcDate(publishedAt, nameof(publishedAt));
 
         if (validatedPublishedAt < OccurredAt)
             throw new DomainException("Publication date cannot be earlier than the message occurrence date.");
@@ -133,15 +133,7 @@ public sealed class OutboxMessage
 
         return normalizedError;
     }
-
-    private static DateTimeOffset ValidateUtcDate(DateTimeOffset date, string parameterName)
-    {
-        if (date.Offset != TimeSpan.Zero)
-            throw new DomainException($"{parameterName} must be in UTC.");
-
-        return date;
-    }
-
+    
     private void EnsureNotPublished()
     {
         if (PublishedAt.HasValue)
@@ -154,5 +146,14 @@ public sealed class OutboxMessage
             throw new DomainException("Attempt count has reached its maximum value.");
 
         AttemptCount++;
+    }
+
+    public void AcquireLease(Guid leaseId, DateTimeOffset acquiredAt, DateTimeOffset leaseExpiresAt)
+    {
+        EnsureNotPublished();
+
+        if (leaseId == Guid.Empty) throw new DomainException("Lease Id cannot be empty.");
+
+        var validatedAcquiredAt = DomainValidation.ValidateUtcDate(acquiredAt, nameof(acquiredAt));
     }
 }
