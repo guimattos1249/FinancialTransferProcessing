@@ -21,6 +21,9 @@ public sealed class OutboxMessage
     public string? LastError { get; private set; }
     public string CorrelationId { get; private set; } = null!;
 
+    public Guid? LeaseId { get; private set; }
+    public DateTimeOffset? LeaseExpiresAt { get; private set; }
+
     private OutboxMessage()
     {
     }
