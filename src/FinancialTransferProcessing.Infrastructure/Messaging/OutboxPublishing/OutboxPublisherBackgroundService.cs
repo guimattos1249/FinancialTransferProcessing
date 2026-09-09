@@ -1,10 +1,13 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using FinancialTransferProcessing.Application.Contracts.Repositories.OutboxMessages;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FinancialTransferProcessing.Infrastructure.Messaging.OutboxPublishing;
 
 internal sealed class OutboxPublisherBackgroundService(
+    IServiceScopeFactory scopeFactory,
     IOptions<OutboxPublisherOptions> options, 
     ILogger<OutboxPublisherBackgroundService> logger) : BackgroundService
 {
@@ -40,9 +43,29 @@ internal sealed class OutboxPublisherBackgroundService(
         }
     }
 
-    private static Task ProcessBatchAsync(
+    private async Task ProcessBatchAsync(
         CancellationToken cancellationToken)
     {
-        return Task.CompletedTask;
+        await using var scope = scopeFactory.CreateAsyncScope();
+
+        var leaseRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageLeaseRepository>();
+
+        var acquiredAtUtc = DateTime.UtcNow;
+        var leaseId = Guid.NewGuid();
+        var leaseExpiresAtUtc = acquiredAtUtc.Add(_options.LeaseDuration);
+
+        var waveSize = Math.Min(
+            _options.BatchSize,
+            _options.MaxDegreeOfParallelism);
+
+        var messages = await leaseRepository.AcquirePublishableBatchAsync(
+            leaseId,
+            acquiredAtUtc,
+            leaseExpiresAtUtc,
+            waveSize,
+            cancellationToken);
+
+        if (messages.Count == 0)
+            return;
     }
 }
