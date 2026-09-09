@@ -6,6 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 
 namespace FinancialTransferProcessing.Infrastructure.Messaging.OutboxPublishing;
 
@@ -18,9 +20,28 @@ internal sealed class OutboxPublisherBackgroundService(
     private readonly OutboxPublisherOptions _options = options.Value;
     private readonly IOutboxMessagePublisher _messagePublisher = messagePublisher;
 
+    private static readonly Meter PublisherMeter =
+    new("FinancialTransferProcessing.OutboxPublishing");
+
+    private static readonly Counter<long> PublicationAttempts =
+        PublisherMeter.CreateCounter<long>(
+            "outbox.publisher.attempts",
+            unit: "{message}");
+
+    private static readonly Histogram<double> PublicationDuration =
+        PublisherMeter.CreateHistogram<double>(
+            "outbox.publisher.duration",
+            unit: "ms");
+
+    private static readonly Histogram<int> WaveSize =
+        PublisherMeter.CreateHistogram<int>(
+            "outbox.publisher.wave.size",
+            unit: "{message}");
+
     private sealed record PublicationResult(
         OutboxMessage Message,
         DateTimeOffset AttemptedAtUtc,
+        TimeSpan Duration,
         Exception? Exception)
     {
         public bool IsSuccess => Exception is null;
@@ -92,10 +113,6 @@ internal sealed class OutboxPublisherBackgroundService(
         var leaseId = Guid.NewGuid();
         var leaseExpiresAtUtc = acquiredAtUtc.Add(_options.LeaseDuration);
 
-        waveSize = Math.Min(
-            _options.BatchSize,
-            _options.MaxDegreeOfParallelism);
-
         var messages = await leaseRepository.AcquirePublishableBatchAsync(
             leaseId,
             acquiredAtUtc,
@@ -135,10 +152,25 @@ internal sealed class OutboxPublisherBackgroundService(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        WaveSize.Record(publicationResults.Length);
+
         var publishedCount = 0;
 
         foreach (var result in publicationResults)
         {
+            var tags = new TagList
+            {
+                { "message.type", result.Message.Type },
+                { "message.schema_version", result.Message.SchemaVersion },
+                { "result", result.IsSuccess ? "published" : "failed" }
+            };
+
+            PublicationAttempts.Add(1, tags);
+
+            PublicationDuration.Record(
+                result.Duration.TotalMilliseconds,
+                tags);
+
             if (result.IsSuccess)
             {
                 publishedCount++;
@@ -177,11 +209,17 @@ internal sealed class OutboxPublisherBackgroundService(
         OutboxMessage message,
         CancellationToken cancellationToken)
     {
+        var startedAtTimestamp = Stopwatch.GetTimestamp();
+
         try
         {
             await _messagePublisher.PublishAsync(message, cancellationToken);
 
-            return new PublicationResult(message, DateTimeOffset.UtcNow, null);
+            return new PublicationResult(
+                message,
+                DateTimeOffset.UtcNow,
+                Stopwatch.GetElapsedTime(startedAtTimestamp),
+                Exception: null);
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
@@ -190,7 +228,11 @@ internal sealed class OutboxPublisherBackgroundService(
         }
         catch (Exception ex)
         {
-            return new PublicationResult(message, DateTimeOffset.UtcNow, ex);
+            return new PublicationResult(
+                message,
+                DateTimeOffset.UtcNow,
+                Stopwatch.GetElapsedTime(startedAtTimestamp),
+                Exception: ex);
         }
     }
 
