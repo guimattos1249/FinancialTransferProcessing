@@ -59,6 +59,29 @@ internal sealed class OutboxPublisherBackgroundService(
     private async Task ProcessBatchAsync(
         CancellationToken cancellationToken)
     {
+        var remainingMessages = _options.BatchSize;
+
+        while (remainingMessages > 0)
+        {
+            var waveSize = Math.Min(
+                remainingMessages,
+                _options.MaxDegreeOfParallelism);
+
+            var processedMessages = await ProcessWaveAsync(
+                waveSize,
+                cancellationToken);
+
+            if (processedMessages == 0)
+                break;
+
+            remainingMessages -= processedMessages;
+        }
+    }
+
+    private async Task<int> ProcessWaveAsync(
+        int waveSize,
+        CancellationToken cancellationToken)
+    {
         await using var scope = scopeFactory.CreateAsyncScope();
 
         var leaseRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageLeaseRepository>();
@@ -69,7 +92,7 @@ internal sealed class OutboxPublisherBackgroundService(
         var leaseId = Guid.NewGuid();
         var leaseExpiresAtUtc = acquiredAtUtc.Add(_options.LeaseDuration);
 
-        var waveSize = Math.Min(
+        waveSize = Math.Min(
             _options.BatchSize,
             _options.MaxDegreeOfParallelism);
 
@@ -81,7 +104,7 @@ internal sealed class OutboxPublisherBackgroundService(
             cancellationToken);
 
         if (messages.Count == 0)
-            return;
+            return 0;
 
         var publicationTasks = messages.Select(
             message => PublishMessageAsync(
@@ -131,7 +154,7 @@ internal sealed class OutboxPublisherBackgroundService(
 
             logger.LogWarning(
                 result.Exception,
-                "Outbox message {MessageId} failed.  LeaseId: {LeaseId}, Attempt: {AttemptCount}, NextAttempt: {NextAttemptAtUtc}.",
+                "Outbox message {MessageId} failed. LeaseId: {LeaseId}, Attempt: {AttemptCount}, NextAttempt: {NextAttemptAtUtc}.",
                 result.Message.MessageId,
                 leaseId,
                 result.Message.AttemptCount,
@@ -146,6 +169,8 @@ internal sealed class OutboxPublisherBackgroundService(
             publicationResults.Length,
             publishedCount,
             failedCount);
+
+        return messages.Count;
     }
 
     private async Task<PublicationResult> PublishMessageAsync(
