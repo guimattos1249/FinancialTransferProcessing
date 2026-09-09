@@ -111,6 +111,41 @@ internal sealed class OutboxPublisherBackgroundService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var publishedCount = 0;
+
+        foreach (var result in publicationResults)
+        {
+            if (result.IsSuccess)
+            {
+                publishedCount++;
+
+                logger.LogInformation(
+                    "Outbox message {MessageId} published. LeaseId: {LeaseId}, Attempt: {AttemptCount}.",
+                    result.Message.MessageId,
+                    leaseId,
+                    result.Message.AttemptCount);
+
+                continue;
+            }
+
+            logger.LogWarning(
+                result.Exception,
+                "Outbox message {MessageId} failed.  LeaseId: {LeaseId}, Attempt: {AttemptCount}, NextAttempt: {NextAttemptAtUtc}.",
+                result.Message.MessageId,
+                leaseId,
+                result.Message.AttemptCount,
+                result.Message.NextAttemptAt);
+        }
+
+        var failedCount = publicationResults.Length - publishedCount;
+
+        logger.LogInformation(
+            "Outbox wave {LeaseId} completed. MessageCount: {MessageCount}, PublishedCount: {PublishedCount}, FailedCount: {FailedCount}.",
+            leaseId,
+            publicationResults.Length,
+            publishedCount,
+            failedCount);
     }
 
     private async Task<PublicationResult> PublishMessageAsync(
