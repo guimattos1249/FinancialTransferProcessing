@@ -1,4 +1,5 @@
-﻿using FinancialTransferProcessing.Application.Contracts.Messaging;
+﻿using FinancialTransferProcessing.Application.Contracts;
+using FinancialTransferProcessing.Application.Contracts.Messaging;
 using FinancialTransferProcessing.Application.Contracts.Repositories.OutboxMessages;
 using FinancialTransferProcessing.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,6 +63,8 @@ internal sealed class OutboxPublisherBackgroundService(
 
         var leaseRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageLeaseRepository>();
 
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
         var acquiredAtUtc = DateTimeOffset.UtcNow;
         var leaseId = Guid.NewGuid();
         var leaseExpiresAtUtc = acquiredAtUtc.Add(_options.LeaseDuration);
@@ -86,6 +89,28 @@ internal sealed class OutboxPublisherBackgroundService(
                 cancellationToken));
 
         var publicationResults = await Task.WhenAll(publicationTasks);
+
+        foreach (var result in publicationResults)
+        {
+            if (result.IsSuccess)
+            {
+                result.Message.MarkAsPublished(leaseId, result.AttemptedAtUtc);
+
+                continue;
+            }
+
+            var retryDelay = CalculateRetryDelay(result.Message.AttemptCount);
+
+            var nextAttemptAtUtc = result.AttemptedAtUtc.Add(retryDelay);
+
+            result.Message.RegisterFailedAttempt(
+                leaseId,
+                FormatError(result.Exception!),
+                result.AttemptedAtUtc,
+                nextAttemptAtUtc);
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<PublicationResult> PublishMessageAsync(
@@ -107,5 +132,38 @@ internal sealed class OutboxPublisherBackgroundService(
         {
             return new PublicationResult(message, DateTimeOffset.UtcNow, ex);
         }
+    }
+
+    private TimeSpan CalculateRetryDelay(
+    int previousAttemptCount)
+    {
+        var delay = _options.InitialRetryDelay;
+        var maximumDelay = _options.MaxRetryDelay;
+
+        for (var attempt = 0;
+             attempt < previousAttemptCount;
+             attempt++)
+        {
+            if (delay >= maximumDelay)
+                return maximumDelay;
+
+            if (delay.Ticks > maximumDelay.Ticks / 2)
+                return maximumDelay;
+
+            delay = TimeSpan.FromTicks(delay.Ticks * 2);
+        }
+
+        return delay > maximumDelay
+            ? maximumDelay
+            : delay;
+    }
+
+    private static string FormatError(Exception exception)
+    {
+        var error = exception.ToString();
+
+        return error.Length <= OutboxMessage.MaxLastErrorLength
+            ? error
+            : error[..OutboxMessage.MaxLastErrorLength];
     }
 }
