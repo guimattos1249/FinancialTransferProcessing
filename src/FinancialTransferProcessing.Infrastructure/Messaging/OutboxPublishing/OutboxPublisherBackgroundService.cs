@@ -2,6 +2,7 @@
 using FinancialTransferProcessing.Application.Contracts.Messaging;
 using FinancialTransferProcessing.Application.Contracts.Repositories.OutboxMessages;
 using FinancialTransferProcessing.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -150,7 +151,20 @@ internal sealed class OutboxPublisherBackgroundService(
                 nextAttemptAtUtc);
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Outbox wave {LeaseId} was not persisted because lease ownership changed. MessageCount: {MessageCount}.",
+                leaseId,
+                publicationResults.Length);
+
+            return 0;
+        }
 
         WaveSize.Record(publicationResults.Length);
 
