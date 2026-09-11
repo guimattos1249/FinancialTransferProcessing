@@ -29,7 +29,9 @@ internal sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outb
         builder.Property(message => message.CorrelationId).
             HasColumnName("correlation_id").HasMaxLength(DomainValidation.MaxCorrelationIdLength).IsRequired();
 
-        builder.Property(message => message.LeaseId).HasColumnName("lease_id");
+        builder.Property(message => message.LeaseId)
+            .HasColumnName("lease_id")
+            .IsConcurrencyToken();
         builder.Property(message => message.LeaseExpiresAt).HasColumnName("lease_expires_at");
 
         builder.HasIndex(message => new
