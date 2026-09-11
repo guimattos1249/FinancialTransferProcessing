@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddSingleton<IMessageSerializer, SystemTextJsonMessageSerializer>();
         services.AddSingleton<RabbitMqConnectionProvider>();
         services.AddHostedService<RabbitMqTopologyInitializer>();
+        services.AddHostedService<OutboxPublisherBackgroundService>();
 
         services.AddSingleton<IOutboxMessagePublisher, RabbitMqOutboxMessagePublisher>();
 
