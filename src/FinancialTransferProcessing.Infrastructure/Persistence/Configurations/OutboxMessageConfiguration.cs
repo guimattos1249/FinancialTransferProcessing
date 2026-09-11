@@ -29,6 +29,11 @@ internal sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outb
         builder.Property(message => message.CorrelationId).
             HasColumnName("correlation_id").HasMaxLength(DomainValidation.MaxCorrelationIdLength).IsRequired();
 
+        builder.Property(message => message.LeaseId)
+            .HasColumnName("lease_id")
+            .IsConcurrencyToken();
+        builder.Property(message => message.LeaseExpiresAt).HasColumnName("lease_expires_at");
+
         builder.HasIndex(message => new
             {
                 message.OccurredAt,
@@ -39,6 +44,10 @@ internal sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outb
 
         builder.HasIndex(message => message.NextAttemptAt)
             .HasDatabaseName("IX_outbox_messages_next_attempt")
+            .HasFilter("published_at IS NULL");
+
+        builder.HasIndex(message => message.LeaseExpiresAt)
+            .HasDatabaseName("IX_outbox_messages_lease_expires")
             .HasFilter("published_at IS NULL");
     }
 }

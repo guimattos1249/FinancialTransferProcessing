@@ -1,0 +1,67 @@
+﻿using FinancialTransferProcessing.Application.Contracts.Messaging;
+using FinancialTransferProcessing.Domain.Entities;
+using Microsoft.Extensions.Options;
+using RabbitMQ.Client;
+using System.Text;
+
+namespace FinancialTransferProcessing.Infrastructure.Messaging.OutboxPublishing;
+
+internal sealed class RabbitMqOutboxMessagePublisher(
+    RabbitMqConnectionProvider connectionProvider,
+    IOptions<OutboxPublisherOptions> options) : IOutboxMessagePublisher
+{
+    private readonly TimeSpan _publishTimeout = options.Value.PublishTimeout;
+
+    public async Task PublishAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+    {
+        using var publishTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        publishTimeoutCts.CancelAfter(_publishTimeout);
+
+        var publishCancellationToken = publishTimeoutCts.Token;
+
+        var connection = await connectionProvider.GetConnectionAsync(publishCancellationToken);
+
+        var channelOptions = new CreateChannelOptions(
+            publisherConfirmationsEnabled: true,
+            publisherConfirmationTrackingEnabled: true);
+
+        await using var channel = await connection.CreateChannelAsync(channelOptions, publishCancellationToken);
+
+        var properties = new BasicProperties
+        {
+            Persistent = true,
+            ContentType = "application/json",
+            ContentEncoding = "utf-8",
+            MessageId = message.MessageId.ToString(),
+            CorrelationId = message.CorrelationId,
+            Type = message.Type,
+            Headers = new Dictionary<string, object?>
+            {
+                ["schema-version"] = message.SchemaVersion
+            }
+        };
+
+        var body = Encoding.UTF8.GetBytes(message.Payload);
+
+        await channel.BasicPublishAsync(
+            exchange: RabbitMqTopology.TransfersExchangeName,
+            routingKey: ResolveRoutingKey(message.Type),
+            mandatory: true,
+            basicProperties: properties,
+            body: body,
+            cancellationToken: publishCancellationToken);
+    }
+
+    private static string ResolveRoutingKey(string messageType)
+    {
+        return messageType switch
+        {
+            TransferRequested.MessageType =>
+                RabbitMqTopology.TransferRequestedRoutingKey,
+
+            _ => throw new InvalidOperationException(
+                $"No RabbitMQ routing key is configured for message type '{messageType}'.")
+        };
+    }
+}

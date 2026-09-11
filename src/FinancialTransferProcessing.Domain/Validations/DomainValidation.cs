@@ -24,4 +24,12 @@ public static class DomainValidation
 
         return normalizedCorrelationId;
     }
+
+    public static DateTimeOffset ValidateUtcDate(DateTimeOffset date, string parameterName)
+    {
+        if (date.Offset != TimeSpan.Zero)
+            throw new DomainException($"{parameterName} must be in UTC.");
+
+        return date;
+    }
 }

@@ -21,6 +21,9 @@ public sealed class OutboxMessage
     public string? LastError { get; private set; }
     public string CorrelationId { get; private set; } = null!;
 
+    public Guid? LeaseId { get; private set; }
+    public DateTimeOffset? LeaseExpiresAt { get; private set; }
+
     private OutboxMessage()
     {
     }
@@ -37,19 +40,20 @@ public sealed class OutboxMessage
         Type = ValidateType(type);
         SchemaVersion = ValidateSchemaVersion(schemaVersion);
         Payload = ValidatePayload(payload);
-        OccurredAt = ValidateUtcDate(occurredAt, nameof(occurredAt));
+        OccurredAt = DomainValidation.ValidateUtcDate(occurredAt, nameof(occurredAt));
         CorrelationId = DomainValidation.ValidateCorrelationId(correlationId);
     }
 
     public void RegisterFailedAttempt(
+        Guid leaseId,
         string error,
         DateTimeOffset attemptedAt,
         DateTimeOffset nextAttemptAt)
     {
         EnsureNotPublished();
 
-        var validatedAttemptedAt = ValidateUtcDate(attemptedAt, nameof(attemptedAt));
-        var validatedNextAttemptAt = ValidateUtcDate(nextAttemptAt, nameof(nextAttemptAt));
+        var validatedAttemptedAt = DomainValidation.ValidateUtcDate(attemptedAt, nameof(attemptedAt));
+        var validatedNextAttemptAt = DomainValidation.ValidateUtcDate(nextAttemptAt, nameof(nextAttemptAt));
         var validatedError = ValidateLastError(error);
 
         if (validatedAttemptedAt < OccurredAt)
@@ -58,30 +62,57 @@ public sealed class OutboxMessage
         if (validatedNextAttemptAt <= validatedAttemptedAt)
             throw new DomainException("Next attempt date must be later than the current attempt date.");
 
+        EnsureActiveLease(leaseId, validatedAttemptedAt);
+
         IncrementAttemptCount();
         LastError = validatedError;
         NextAttemptAt = validatedNextAttemptAt;
+        LeaseId = null;
+        LeaseExpiresAt = null;
     }
 
-    public void MarkAsPublished(DateTimeOffset publishedAt)
+    public void MarkAsPublished(Guid leaseId, DateTimeOffset publishedAt)
     {
         EnsureNotPublished();
 
-        var validatedPublishedAt = ValidateUtcDate(publishedAt, nameof(publishedAt));
+        var validatedPublishedAt = DomainValidation.ValidateUtcDate(publishedAt, nameof(publishedAt));
 
         if (validatedPublishedAt < OccurredAt)
             throw new DomainException("Publication date cannot be earlier than the message occurrence date.");
+
+        EnsureActiveLease(leaseId, validatedPublishedAt);
 
         IncrementAttemptCount();
         PublishedAt = validatedPublishedAt;
         NextAttemptAt = null;
         LastError = null;
+        LeaseId = null;
+        LeaseExpiresAt = null;
+    }
+
+    public void AcquireLease(Guid leaseId, DateTimeOffset acquiredAt, DateTimeOffset leaseExpiresAt)
+    {
+        EnsureNotPublished();
+
+        if (leaseId == Guid.Empty) throw new DomainException("Lease Id cannot be empty.");
+
+        var validatedAcquiredAt = DomainValidation.ValidateUtcDate(acquiredAt, nameof(acquiredAt));
+        var validatedLeaseExpiresAt = DomainValidation.ValidateUtcDate(leaseExpiresAt, nameof(leaseExpiresAt));
+
+        if (validatedLeaseExpiresAt <= validatedAcquiredAt)
+            throw new DomainException("Lease expiration date must be later than the acquisition date.");
+
+        if (LeaseExpiresAt.HasValue && LeaseExpiresAt > validatedAcquiredAt)
+            throw new DomainException("The outbox message already has an active lease.");
+
+        LeaseId = leaseId;
+        LeaseExpiresAt = validatedLeaseExpiresAt;
     }
 
     private static Guid ValidateMessageId(Guid messageId)
     {
         if (messageId == Guid.Empty)
-            throw new DomainException("Message ID cannot be empty.");
+            throw new DomainException("Message Id cannot be empty.");
 
         return messageId;
     }
@@ -130,15 +161,7 @@ public sealed class OutboxMessage
 
         return normalizedError;
     }
-
-    private static DateTimeOffset ValidateUtcDate(DateTimeOffset date, string parameterName)
-    {
-        if (date.Offset != TimeSpan.Zero)
-            throw new DomainException($"{parameterName} must be in UTC.");
-
-        return date;
-    }
-
+    
     private void EnsureNotPublished()
     {
         if (PublishedAt.HasValue)
@@ -151,5 +174,15 @@ public sealed class OutboxMessage
             throw new DomainException("Attempt count has reached its maximum value.");
 
         AttemptCount++;
+    }
+
+    private void EnsureActiveLease(Guid leaseId, DateTimeOffset currentDate)
+    {
+        if (leaseId == Guid.Empty)
+            throw new DomainException("The Lease Id cannot be empty.");
+        if (LeaseId != leaseId)
+            throw new DomainException("The provided lease Id does not match the current lease ID.");
+        if (!LeaseExpiresAt.HasValue || LeaseExpiresAt <= currentDate)
+            throw new DomainException("The lease has expired or is not active.");
     }
 }
