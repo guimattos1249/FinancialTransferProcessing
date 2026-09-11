@@ -1,6 +1,6 @@
 # Tarefa 13 — Publicar o outbox com publisher confirms
 
-**Status:** Backlog  
+**Status:** Conclupido
 **Fase:** Processamento assíncrono  
 **Depende de:** Tarefas 11 e 12
 
