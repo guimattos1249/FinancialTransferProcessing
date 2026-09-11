@@ -8,7 +8,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 
 namespace FinancialTransferProcessing.Infrastructure.Messaging.OutboxPublishing;
 
@@ -20,24 +19,6 @@ internal sealed class OutboxPublisherBackgroundService(
 {
     private readonly OutboxPublisherOptions _options = options.Value;
     private readonly IOutboxMessagePublisher _messagePublisher = messagePublisher;
-
-    private static readonly Meter PublisherMeter =
-    new("FinancialTransferProcessing.OutboxPublishing");
-
-    private static readonly Counter<long> PublicationAttempts =
-        PublisherMeter.CreateCounter<long>(
-            "outbox.publisher.attempts",
-            unit: "{message}");
-
-    private static readonly Histogram<double> PublicationDuration =
-        PublisherMeter.CreateHistogram<double>(
-            "outbox.publisher.duration",
-            unit: "ms");
-
-    private static readonly Histogram<int> WaveSize =
-        PublisherMeter.CreateHistogram<int>(
-            "outbox.publisher.wave.size",
-            unit: "{message}");
 
     private sealed record PublicationResult(
         OutboxMessage Message,
@@ -140,13 +121,16 @@ internal sealed class OutboxPublisherBackgroundService(
                 continue;
             }
 
-            var retryDelay = CalculateRetryDelay(result.Message.AttemptCount);
+            var retryDelay = OutboxRetryPolicy.CalculateDelay(
+                result.Message.AttemptCount,
+                _options.InitialRetryDelay,
+                _options.MaxRetryDelay);
 
             var nextAttemptAtUtc = result.AttemptedAtUtc.Add(retryDelay);
 
             result.Message.RegisterFailedAttempt(
                 leaseId,
-                FormatError(result.Exception!),
+                OutboxRetryPolicy.FormatError(result.Exception!),
                 result.AttemptedAtUtc,
                 nextAttemptAtUtc);
         }
@@ -166,24 +150,16 @@ internal sealed class OutboxPublisherBackgroundService(
             return 0;
         }
 
-        WaveSize.Record(publicationResults.Length);
+        OutboxPublisherMetrics.RecordWaveSize(publicationResults.Length);
 
         var publishedCount = 0;
 
         foreach (var result in publicationResults)
         {
-            var tags = new TagList
-            {
-                { "message.type", result.Message.Type },
-                { "message.schema_version", result.Message.SchemaVersion },
-                { "result", result.IsSuccess ? "published" : "failed" }
-            };
-
-            PublicationAttempts.Add(1, tags);
-
-            PublicationDuration.Record(
-                result.Duration.TotalMilliseconds,
-                tags);
+            OutboxPublisherMetrics.RecordPublication(
+                result.Message,
+                result.IsSuccess,
+                result.Duration);
 
             if (result.IsSuccess)
             {
@@ -231,7 +207,7 @@ internal sealed class OutboxPublisherBackgroundService(
 
             return new PublicationResult(
                 message,
-                GetAttemptedAtUtc(message),
+                OutboxAttemptTimestamp.Resolve(message),
                 Stopwatch.GetElapsedTime(startedAtTimestamp),
                 Exception: null);
         }
@@ -244,52 +220,9 @@ internal sealed class OutboxPublisherBackgroundService(
         {
             return new PublicationResult(
                 message,
-                GetAttemptedAtUtc(message),
+                OutboxAttemptTimestamp.Resolve(message),
                 Stopwatch.GetElapsedTime(startedAtTimestamp),
                 Exception: ex);
         }
-    }
-
-    private static DateTimeOffset GetAttemptedAtUtc(
-        OutboxMessage message)
-    {
-        var currentDateUtc = DateTimeOffset.UtcNow;
-
-        return currentDateUtc < message.OccurredAt
-            ? message.OccurredAt
-            : currentDateUtc;
-    }
-
-    private TimeSpan CalculateRetryDelay(
-    int previousAttemptCount)
-    {
-        var delay = _options.InitialRetryDelay;
-        var maximumDelay = _options.MaxRetryDelay;
-
-        for (var attempt = 0;
-             attempt < previousAttemptCount;
-             attempt++)
-        {
-            if (delay >= maximumDelay)
-                return maximumDelay;
-
-            if (delay.Ticks > maximumDelay.Ticks / 2)
-                return maximumDelay;
-
-            delay = TimeSpan.FromTicks(delay.Ticks * 2);
-        }
-
-        return delay > maximumDelay
-            ? maximumDelay
-            : delay;
-    }
-
-    private static string FormatError(Exception exception)
-    {
-        var error = exception.ToString();
-
-        return error.Length <= OutboxMessage.MaxLastErrorLength
-            ? error
-            : error[..OutboxMessage.MaxLastErrorLength];
     }
 }
