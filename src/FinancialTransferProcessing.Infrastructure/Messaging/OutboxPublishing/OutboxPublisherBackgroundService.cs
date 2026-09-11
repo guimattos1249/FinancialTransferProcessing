@@ -231,7 +231,7 @@ internal sealed class OutboxPublisherBackgroundService(
 
             return new PublicationResult(
                 message,
-                DateTimeOffset.UtcNow,
+                GetAttemptedAtUtc(message),
                 Stopwatch.GetElapsedTime(startedAtTimestamp),
                 Exception: null);
         }
@@ -244,10 +244,20 @@ internal sealed class OutboxPublisherBackgroundService(
         {
             return new PublicationResult(
                 message,
-                DateTimeOffset.UtcNow,
+                GetAttemptedAtUtc(message),
                 Stopwatch.GetElapsedTime(startedAtTimestamp),
                 Exception: ex);
         }
+    }
+
+    private static DateTimeOffset GetAttemptedAtUtc(
+        OutboxMessage message)
+    {
+        var currentDateUtc = DateTimeOffset.UtcNow;
+
+        return currentDateUtc < message.OccurredAt
+            ? message.OccurredAt
+            : currentDateUtc;
     }
 
     private TimeSpan CalculateRetryDelay(
