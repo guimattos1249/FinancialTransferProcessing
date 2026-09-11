@@ -14,13 +14,19 @@ internal sealed class RabbitMqOutboxMessagePublisher(
 
     public async Task PublishAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
-        var connection = await connectionProvider.GetConnectionAsync(cancellationToken);
+        using var publishTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        publishTimeoutCts.CancelAfter(_publishTimeout);
+
+        var publishCancellationToken = publishTimeoutCts.Token;
+
+        var connection = await connectionProvider.GetConnectionAsync(publishCancellationToken);
 
         var channelOptions = new CreateChannelOptions(
             publisherConfirmationsEnabled: true,
             publisherConfirmationTrackingEnabled: true);
 
-        await using var channel = await connection.CreateChannelAsync(channelOptions, cancellationToken);
+        await using var channel = await connection.CreateChannelAsync(channelOptions, publishCancellationToken);
 
         var properties = new BasicProperties
         {
@@ -38,17 +44,13 @@ internal sealed class RabbitMqOutboxMessagePublisher(
 
         var body = Encoding.UTF8.GetBytes(message.Payload);
 
-        using var publishTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-        publishTimeoutCts.CancelAfter(_publishTimeout);
-
         await channel.BasicPublishAsync(
             exchange: RabbitMqTopology.TransfersExchangeName,
             routingKey: ResolveRoutingKey(message.Type),
             mandatory: true,
             basicProperties: properties,
             body: body,
-            cancellationToken: publishTimeoutCts.Token);
+            cancellationToken: publishCancellationToken);
     }
 
     private static string ResolveRoutingKey(string messageType)
