@@ -28,3 +28,22 @@ Adicionar `FinancialTransferProcessing.Worker` e consumir `TransferRequested` co
 - Payload inválido não derruba o loop de consumo e recebe destino conhecido.
 - O número de entregas simultâneas respeita a configuração.
 
+RabbitMQ
+   │
+   ▼
+TransferRequestedConsumer
+   │ mantém conexão/canal
+   │ configura prefetch e concorrência
+   ▼
+TransferRequestedDeliveryDispatcher
+   │ decide o destino
+   ▼
+TransferRequestedDeliveryHandler
+   │ valida envelope
+   │ cria escopo de DI
+   │ chama IProcessTransferUseCase
+   ▼
+RabbitMqDeliveryOperations
+   ├─ sucesso → ack
+   ├─ inválida → DLQ → confirm → ack
+   └─ exceção → nack/requeue

@@ -1,6 +1,7 @@
-using FinancialTransferProcessing.Worker.Consumers.Configuration;
 using FinancialTransferProcessing.Application;
 using FinancialTransferProcessing.Infrastructure;
+using FinancialTransferProcessing.Worker;
+using FinancialTransferProcessing.Worker.Consumers.Configuration;
 using Microsoft.Extensions.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -13,6 +14,7 @@ builder.Services.AddOptions<TransferConsumerOptions>()
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddTransferConsumerDependencies();
 
 var host = builder.Build();
 await host.RunAsync();
