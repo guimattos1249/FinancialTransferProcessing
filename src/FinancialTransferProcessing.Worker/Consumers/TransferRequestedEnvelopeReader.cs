@@ -21,8 +21,8 @@ internal sealed class TransferRequestedEnvelopeReader(IMessageSerializer seriali
         serializer ?? throw new ArgumentNullException(nameof(serializer));
 
     public ProcessTransferRequest Read(
-    ReadOnlyMemory<byte> body,
-    IReadOnlyBasicProperties properties)
+        ReadOnlyMemory<byte> body,
+        IReadOnlyBasicProperties properties)
     {
         ArgumentNullException.ThrowIfNull(properties);
 
