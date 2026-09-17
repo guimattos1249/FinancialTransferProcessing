@@ -3,7 +3,7 @@ using RabbitMQ.Client;
 
 namespace FinancialTransferProcessing.Infrastructure.Messaging;
 
-internal sealed class RabbitMqConnectionProvider : IAsyncDisposable
+public sealed class RabbitMqConnectionProvider : IAsyncDisposable
 {
     private readonly ConnectionFactory _connectionFactory;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
