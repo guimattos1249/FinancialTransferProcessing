@@ -6,6 +6,8 @@ using System.Text.Json;
 
 namespace FinancialTransferProcessing.Worker.Consumers;
 
+// Trata a mensagem externa como entrada não confiável. Somente depois de
+// validar metadados, UTF-8, JSON e consistência ela cria o request interno.
 internal sealed class TransferRequestedEnvelopeReader(IMessageSerializer serializer)
 {
     private const string ExpectedContentType = "application/json";

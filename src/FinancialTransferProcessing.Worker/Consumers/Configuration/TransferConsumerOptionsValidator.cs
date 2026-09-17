@@ -1,7 +1,8 @@
-﻿using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Options;
 
-namespace FinancialTransferProcessing.Worker.Consumers;
+namespace FinancialTransferProcessing.Worker.Consumers.Configuration;
 
+// Valida no startup os limites usados pelo QoS e pelo dispatcher do RabbitMQ.
 internal sealed class TransferConsumerOptionsValidator : IValidateOptions<TransferConsumerOptions>
 {
     public ValidateOptionsResult Validate(string? name, TransferConsumerOptions options)

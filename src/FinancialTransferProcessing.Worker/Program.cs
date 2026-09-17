@@ -1,4 +1,4 @@
-using FinancialTransferProcessing.Worker.Consumers;
+using FinancialTransferProcessing.Worker.Consumers.Configuration;
 using FinancialTransferProcessing.Application;
 using FinancialTransferProcessing.Infrastructure;
 using Microsoft.Extensions.Options;
