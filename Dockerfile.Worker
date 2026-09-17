@@ -1,0 +1,22 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY ["src/FinancialTransferProcessing.Worker/FinancialTransferProcessing.Worker.csproj", "src/FinancialTransferProcessing.Worker/"]
+COPY ["src/FinancialTransferProcessing.Application/FinancialTransferProcessing.Application.csproj", "src/FinancialTransferProcessing.Application/"]
+COPY ["src/FinancialTransferProcessing.Domain/FinancialTransferProcessing.Domain.csproj", "src/FinancialTransferProcessing.Domain/"]
+COPY ["src/FinancialTransferProcessing.Infrastructure/FinancialTransferProcessing.Infrastructure.csproj", "src/FinancialTransferProcessing.Infrastructure/"]
+RUN dotnet restore "src/FinancialTransferProcessing.Worker/FinancialTransferProcessing.Worker.csproj"
+
+COPY . .
+RUN dotnet publish "src/FinancialTransferProcessing.Worker/FinancialTransferProcessing.Worker.csproj" \
+    --configuration Release \
+    --output /app/publish \
+    --no-restore \
+    /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app/publish .
+
+USER $APP_UID
+ENTRYPOINT ["dotnet", "FinancialTransferProcessing.Worker.dll"]

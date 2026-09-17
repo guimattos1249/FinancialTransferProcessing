@@ -1,6 +1,6 @@
 ﻿namespace FinancialTransferProcessing.Infrastructure.Messaging;
 
-internal static class RabbitMqTopology
+public static class RabbitMqTopology
 {
     public const string TransfersExchangeName = "financial-transfers";
     public const string RetryExchangeName = "financial-transfers.retry";

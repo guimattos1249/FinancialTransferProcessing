@@ -36,14 +36,6 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(RabbitMqOptions.SectionName))
             .ValidateOnStart();
 
-        services.AddSingleton<
-            IValidateOptions<OutboxPublisherOptions>,
-            OutboxPublisherOptionsValidator>();
-
-        services.AddOptions<OutboxPublisherOptions>()
-            .Bind(configuration.GetSection(OutboxPublisherOptions.SectionName))
-            .ValidateOnStart();
-
         services.AddScoped<IAccountReadOnlyRepository, AccountRepository>();
         services.AddScoped<IAccountWriteOnlyRepository, AccountRepository>();
         services.AddScoped<ITransferReadOnlyRepository, TransferRepository>();
@@ -56,8 +48,23 @@ public static class DependencyInjection
         services.AddSingleton<IMessageSerializer, SystemTextJsonMessageSerializer>();
         services.AddSingleton<RabbitMqConnectionProvider>();
         services.AddHostedService<RabbitMqTopologyInitializer>();
-        services.AddHostedService<OutboxPublisherBackgroundService>();
 
+        return services;
+    }
+
+    public static IServiceCollection AddOutboxPublishing(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddSingleton<
+            IValidateOptions<OutboxPublisherOptions>,
+            OutboxPublisherOptionsValidator>();
+
+        services.AddOptions<OutboxPublisherOptions>()
+            .Bind(configuration.GetSection(OutboxPublisherOptions.SectionName))
+            .ValidateOnStart();
+
+        services.AddHostedService<OutboxPublisherBackgroundService>();
         services.AddSingleton<IOutboxMessagePublisher, RabbitMqOutboxMessagePublisher>();
 
         return services;
