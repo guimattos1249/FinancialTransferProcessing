@@ -41,6 +41,26 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.Worker
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=financial-transfer-processing-pg;Port=5432;Database=financial_transfer_processing;Username=postgres;Password=postgres
+      RabbitMq__HostName: financial-transfer-processing-rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__UserName: "${RABBITMQ_USER:?RABBITMQ_USER must be set in .env}"
+      RabbitMq__Password: "${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set in .env}"
+      RabbitMq__ClientProvidedName: financial-transfer-processing-worker
+    depends_on:
+      financial-transfer-processing-pg:
+        condition: service_healthy
+      financial-transfer-processing-rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
   financial-transfer-processing-rabbitmq:
     container_name: financial-transfer-processing-rabbitmq
     hostname: financial-transfer-processing-rabbitmq
